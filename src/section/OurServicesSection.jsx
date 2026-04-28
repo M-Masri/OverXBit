@@ -34,8 +34,7 @@ const services = [
     id: '05',
     title: 'Investment Solutions',
     tint: 'from-orange-500/35 via-amber-400/10 to-slate-900/75',
-    image:
-      'https://images.unsplash.com/photo-1642543348745-7f316f8f4f3c?auto=format&fit=crop&w=1400&q=80',
+    image: '/assets/investment-solutions.webp',
   },
   {
     id: '06',
