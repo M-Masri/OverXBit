@@ -48,12 +48,12 @@ function ChairmanSection() {
           A Message From The <span className="text-gradient">Chairman</span>
         </motion.h2>
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:items-center">
+        <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:items-start">
           <motion.div className="chairman-media relative overflow-hidden rounded-2xl p-2" variants={mediaVariants}>
             <img
               src="https://overxbit.com/static/images/ceo/miro-img-msg.jpg"
               alt="Miro M. Fallahi"
-              className="h-[440px] w-full rounded-2xl object-cover"
+              className="h-[480px] w-full rounded-2xl object-cover"
             />
             <div className="chairman-ring" />
           </motion.div>
@@ -62,7 +62,7 @@ function ChairmanSection() {
             <motion.h3 variants={textVariants} className="text-4xl font-semibold text-white">Miro M. Fallahi</motion.h3>
             <motion.p variants={textVariants} className="mt-2 text-xl text-orange-300">Founder - Chairman</motion.p>
 
-            <motion.div variants={textVariants} className="mt-6 space-y-5 text-lg leading-9 text-slate-300">
+            <motion.div variants={textVariants} className="mt-6 space-y-5 text-lg leading-8 text-slate-300">
               <p>
                 In a world that&apos;s evolving faster than ever, technology is rewriting the
                 rules of finance. At the heart of this transformation lies cryptocurrency,

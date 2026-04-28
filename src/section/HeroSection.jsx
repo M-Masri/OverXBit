@@ -26,29 +26,64 @@ function HeroSection() {
     <section id="home" className="hero-shell h-[500px] relative left-1/2 w-screen max-w-none -translate-x-1/2 overflow-hidden px-6 pb-20 pt-12 sm:px-10 sm:pt-16">
       <div className="hero-noise" />
       <motion.div
-        className="hero-orb"
-        initial={reduceMotion ? false : { y: 0, scale: 1, opacity: 0.72 }}
+        className="home-app-wrapper"
+        initial={reduceMotion ? false : { y: 18, opacity: 0.86 }}
         animate={
           reduceMotion
-            ? { opacity: 0.72 }
+            ? { opacity: 1 }
             : {
-                y: [-4, 8, -4],
-                scale: [1, 1.02, 1],
-                opacity: [0.68, 0.82, 0.68],
+                y: [18, 10, 18],
+                opacity: [0.9, 1, 0.9],
               }
         }
         transition={
           reduceMotion
             ? { duration: 0 }
             : {
-                duration: 9,
+                duration: 8,
                 ease: 'easeInOut',
                 repeat: Infinity,
               }
         }
-      />
+      >
+        <motion.div
+          className="circle-wrapper"
+          initial={reduceMotion ? false : { scale: 0.98, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : {
+                  duration: 1,
+                  delay: 0.24,
+                  ease: motionEase,
+                }
+          }
+        >
+          <div className="circle-container">
+            <img
+              src="https://cdn.prod.website-files.com/673c8623b53e085c22dcde7d/673c8790c213543ea74788a0_Red%20Circle%20No%20Glow.png"
+              alt=""
+              className="circle-bg-image"
+            />
+            <img
+              src="https://cdn.prod.website-files.com/673c8623b53e085c22dcde7d/673c87ad03ca3526725241f9_Red%20Glow.png"
+              alt=""
+              className="red-glow"
+            />
+            <img
+              src="https://cdn.prod.website-files.com/673c8623b53e085c22dcde7d/673c878ff9abee9c378d3e76_Glow.png"
+              alt=""
+              className="white-glow"
+            />
+            <div className="red-circle-center">
+              <div className="red-circle" />
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
       <motion.div
-        className="relative z-10 text-center"
+        className="relative z-20 text-center pt-20"
         variants={heroTextContainer}
         {...loadMotion}
       >
@@ -99,8 +134,6 @@ function HeroSection() {
           </motion.button>
         </motion.div>
       </motion.div>
-
-      <div className="hero-arc" />
     </section>
   )
 }
