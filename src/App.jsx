@@ -9,10 +9,11 @@ import FaqSection from './section/FaqSection'
 import ContactUsSection from './section/ContactUsSection'
 import SiteFooter from './section/SiteFooter'
 import LoginPage from './pages/LoginPage'
+import { Route, Routes } from 'react-router-dom'
 
 function HomePage() {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-grid text-slate-100">
+    <div className="min-h-screen overflow-y-hidden overflow-x-hidden bg-grid text-slate-100">
       <Header />
 
       <main className="mx-auto w-full max-w-7xl px-5 pb-16 pt-0 sm:px-8">
@@ -32,14 +33,11 @@ function HomePage() {
 }
 
 function App() {
-  const currentPath = window.location.pathname.toLowerCase()
-
-  if (currentPath === '/login') {
-    return <LoginPage />
-  }
-
   return (
-    <HomePage />
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+    </Routes>
   )
 }
 

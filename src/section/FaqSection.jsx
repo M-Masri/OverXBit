@@ -1,3 +1,7 @@
+import { useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { createStaggerContainer, getInViewMotion, revealVariants } from '../lib/motion'
+
 const faqItems = [
   {
     q: 'Is this subscription suitable for beginners?',
@@ -18,29 +22,70 @@ const faqItems = [
 ]
 
 function FaqSection() {
+  const [openItems, setOpenItems] = useState({})
+  const reduceMotion = useReducedMotion()
+  const inViewMotion = getInViewMotion(reduceMotion)
+  const faqContainer = createStaggerContainer(0.16, 0.1)
+
+  const toggleItem = (question) => {
+    setOpenItems((prev) => ({
+      ...prev,
+      [question]: !prev[question],
+    }))
+  }
+
   return (
-    <section id="faq" className="pt-16">
+    <motion.section id="faq" className="pt-16" variants={revealVariants} {...inViewMotion}>
       <div className="faq-shell p-6 sm:p-8 lg:p-10">
-        <h2 className="text-center font-display text-4xl text-white sm:text-5xl">
+        <motion.h2 variants={revealVariants} className="text-center font-display text-4xl text-white sm:text-5xl">
           Frequently Asked <span className="text-gradient">Questions</span>
-        </h2>
-        <div className="mx-auto mt-10 grid max-w-4xl gap-3">
+        </motion.h2>
+        <motion.div
+          className="mx-auto mt-10 grid max-w-4xl gap-3"
+          variants={faqContainer}
+          initial={reduceMotion ? false : 'hidden'}
+          whileInView="visible"
+          viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}
+        >
           {faqItems.map((item) => (
-            <details key={item.q} className="faq-item surface-card p-5">
-              <summary className="faq-summary cursor-pointer list-none text-lg font-semibold text-white">
+            <motion.article key={item.q} className="faq-item surface-card p-5" variants={revealVariants}>
+              <button
+                type="button"
+                className="faq-summary w-full cursor-pointer list-none text-left text-lg font-semibold text-white"
+                aria-expanded={Boolean(openItems[item.q])}
+                onClick={() => toggleItem(item.q)}
+              >
                 <span>{item.q}</span>
-                <span className="faq-icon" aria-hidden="true">
+                <motion.span
+                  className="faq-icon"
+                  aria-hidden="true"
+                  animate={openItems[item.q] ? { rotate: 180 } : { rotate: 0 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                >
                   <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                </span>
-              </summary>
-              <p className="mt-3 leading-8 text-slate-300">{item.a}</p>
-            </details>
+                </motion.span>
+              </button>
+              <AnimatePresence initial={false}>
+                {openItems[item.q] ? (
+                  <motion.div
+                    key={`${item.q}-content`}
+                    initial={reduceMotion ? { opacity: 1 } : { opacity: 0, height: 0 }}
+                    animate={reduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto' }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                    transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <p className="mt-3 leading-8 text-slate-300">{item.a}</p>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </motion.article>
           ))}
-        </div>
+        </motion.div>
       </div>
-    </section>
+    </motion.section>
   )
 }
 

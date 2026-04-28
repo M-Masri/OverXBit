@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { createStaggerContainer, getInViewMotion, revealVariants } from '../lib/motion'
 
 const figures = [
   { target: 10, suffix: '+', label: 'Years Of Experience' },
@@ -51,6 +53,9 @@ function CounterValue({ target, suffix, start, duration = 2600 }) {
 function OverxbitFiguresSection() {
   const sectionRef = useRef(null)
   const [startCounters, setStartCounters] = useState(false)
+  const reduceMotion = useReducedMotion()
+  const inViewMotion = getInViewMotion(reduceMotion)
+  const statsContainer = createStaggerContainer(0.16, 0.12)
 
   useEffect(() => {
     const sectionElement = sectionRef.current
@@ -80,20 +85,31 @@ function OverxbitFiguresSection() {
 
   return (
     <section id="figures" ref={sectionRef} className="pt-16">
-      <div className="figures-shell relative overflow-hidden px-6 py-12 sm:px-10 sm:py-14">
+      <motion.div
+        className="figures-shell relative overflow-hidden px-6 py-12 sm:px-10 sm:py-14"
+        variants={revealVariants}
+        {...inViewMotion}
+      >
         <div className="figures-wave" />
         <div className="figures-orbs" />
 
         <div className="relative z-10">
-          <h2 className="text-center font-display text-4xl text-white sm:text-5xl">
+          <motion.h2 variants={revealVariants} className="text-center font-display text-4xl text-white sm:text-5xl">
             Overxbit In <span className="text-gradient">Figures</span>
-          </h2>
+          </motion.h2>
 
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <motion.div
+            className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
+            variants={statsContainer}
+            initial={reduceMotion ? false : 'hidden'}
+            whileInView="visible"
+            viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}
+          >
             {figures.map((item) => (
-              <article
+              <motion.article
                 key={item.label}
                 className="p-5 text-center"
+                variants={revealVariants}
               >
                 <p className="text-5xl font-bold text-white">
                   <CounterValue
@@ -103,11 +119,11 @@ function OverxbitFiguresSection() {
                   />
                 </p>
                 <p className="mt-3 text-xl text-slate-200">{item.label}</p>
-              </article>
+              </motion.article>
             ))}
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     </section>
   )
 }

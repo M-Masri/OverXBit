@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import PhoneInputLib from 'react-phone-input-2'
 import 'react-phone-input-2/lib/style.css'
+import { createStaggerContainer, getInViewMotion, hoverSpring, motionEase, revealVariants } from '../lib/motion'
 
 const PhoneInput = PhoneInputLib.default ?? PhoneInputLib
 
@@ -97,56 +99,120 @@ function ContactDetailIcon({ type }) {
 
 function ContactUsSection() {
   const [phone, setPhone] = useState('971')
+  const reduceMotion = useReducedMotion()
+  const inViewMotion = getInViewMotion(reduceMotion)
+  const detailsContainer = createStaggerContainer(0.1, 0.06)
+  const socialsContainer = createStaggerContainer(0.08, 0)
+
+  const leftContentVariants = {
+    hidden: {
+      opacity: 0,
+      x: -34,
+      scale: 0.98,
+    },
+    visible: {
+      opacity: 1,
+      x: 0,
+      scale: 1,
+      transition: {
+        duration: 0.78,
+        ease: motionEase,
+      },
+    },
+  }
+
+  const formVariants = {
+    hidden: {
+      opacity: 0,
+      x: 34,
+      scale: 0.97,
+    },
+    visible: {
+      opacity: 1,
+      x: 0,
+      scale: 1,
+      transition: {
+        duration: 0.82,
+        ease: motionEase,
+      },
+    },
+  }
 
   return (
-    <section id="contact" className="pt-16">
+    <motion.section id="contact" className="pt-16" variants={revealVariants} {...inViewMotion}>
       <div className="contact-shell p-6 sm:p-8 lg:p-10">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-orange-300">Contact Us</p>
-            <h2 className="mt-3 font-display text-5xl text-white sm:text-6xl">
+          <motion.div variants={leftContentVariants} initial={reduceMotion ? false : 'hidden'} whileInView="visible" viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}>
+            <motion.p variants={revealVariants} className="text-xs uppercase tracking-[0.2em] text-orange-300">Contact Us</motion.p>
+            <motion.h2 variants={revealVariants} className="mt-3 font-display text-5xl text-white sm:text-6xl">
               Contact <span className="text-gradient">Us</span>
-            </h2>
-            <p className="mt-4 max-w-sm leading-8 text-slate-300">
+            </motion.h2>
+            <motion.p variants={revealVariants} className="mt-4 max-w-sm leading-8 text-slate-300">
               Tell us what you are aiming for in trading, and our team will guide you
               toward the right plan and execution path.
-            </p>
+            </motion.p>
 
-            <div className="mt-8 space-y-3">
+            <motion.div
+              className="mt-8 space-y-3"
+              variants={detailsContainer}
+              initial={reduceMotion ? false : 'hidden'}
+              whileInView="visible"
+              viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}
+            >
               {contactDetails.map((item) => (
-                <div key={`${item.label}-${item.value}`} className="contact-detail-item">
+                <motion.div key={`${item.label}-${item.value}`} className="contact-detail-item" variants={revealVariants}>
                   <span className="contact-detail-icon">
                     <ContactDetailIcon type={item.icon} />
                   </span>
                   <span className="text-sm text-slate-300">
                     {item.label}: {item.value}
                   </span>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
 
-            <div className="mt-10">
+            <motion.div variants={revealVariants} className="mt-10">
               <p className="text-lg font-semibold text-white">Follow us</p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <motion.div
+                className="mt-4 flex flex-wrap gap-2"
+                variants={socialsContainer}
+                initial={reduceMotion ? false : 'hidden'}
+                whileInView="visible"
+                viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}
+              >
                 {socialLinks.map((item) => (
-                  <a key={item.name} href={item.href} aria-label={item.name} className="contact-social-chip">
+                  <motion.a
+                    key={item.name}
+                    href={item.href}
+                    aria-label={item.name}
+                    className="contact-social-chip"
+                    variants={revealVariants}
+                    whileHover={reduceMotion ? undefined : { y: -3, scale: 1.04 }}
+                    transition={hoverSpring}
+                  >
                     <SocialIcon type={item.icon} />
-                  </a>
+                  </motion.a>
                 ))}
-              </div>
-            </div>
-          </div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
 
-          <form className="contact-form-card p-5 sm:p-8">
+          <motion.form
+            className="contact-form-card p-5 sm:p-8"
+            variants={formVariants}
+            initial={reduceMotion ? false : 'hidden'}
+            whileInView="visible"
+            viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}
+          >
             <div className="grid gap-5 sm:grid-cols-2">
               <label className="block">
                 <span className="contact-label">Name</span>
-                <input className="contact-input mt-2" placeholder="John Carter" />
+                <motion.input className="contact-input mt-2" placeholder="John Carter" whileFocus={reduceMotion ? undefined : { scale: 1.01 }} transition={hoverSpring} />
               </label>
 
               <label className="block">
                 <span className="contact-label">Email</span>
-                <input className="contact-input mt-2" placeholder="example@youremail.com" type="email" />
+                <motion.input className="contact-input mt-2" placeholder="example@youremail.com" type="email" whileFocus={reduceMotion ? undefined : { scale: 1.01 }} transition={hoverSpring} />
               </label>
             </div>
 
@@ -167,7 +233,7 @@ function ContactUsSection() {
 
               <label className="block">
                 <span className="contact-label">Subject</span>
-                <select className="contact-input contact-select mt-2" defaultValue="">
+                <motion.select className="contact-input contact-select mt-2" defaultValue="" whileFocus={reduceMotion ? undefined : { scale: 1.01 }} transition={hoverSpring}>
                   <option value="" disabled>
                     Select subject
                   </option>
@@ -176,28 +242,33 @@ function ContactUsSection() {
                       {item}
                     </option>
                   ))}
-                </select>
+                </motion.select>
               </label>
             </div>
 
             <label className="mt-4 block">
               <span className="contact-label">Message</span>
-              <textarea
+              <motion.textarea
                 className="contact-input mt-2 min-h-[130px] resize-none"
                 placeholder="Type your message here..."
+                whileFocus={reduceMotion ? undefined : { scale: 1.01 }}
+                transition={hoverSpring}
               />
             </label>
 
-            <button
+            <motion.button
               type="button"
               className="mt-6 rounded-xl bg-gradient-to-r from-orange-500 to-orange-400 px-8 py-3 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(249,115,22,0.35)]"
+              whileHover={reduceMotion ? undefined : { scale: 1.03 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+              transition={hoverSpring}
             >
               Send message
-            </button>
-          </form>
+            </motion.button>
+          </motion.form>
         </div>
       </div>
-    </section>
+    </motion.section>
   )
 }
 

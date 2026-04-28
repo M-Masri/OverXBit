@@ -1,3 +1,6 @@
+import { motion, useReducedMotion } from 'framer-motion'
+import { createStaggerContainer, getInViewMotion, hoverSpring, revealVariants } from '../lib/motion'
+
 const reasons = [
   {
     title: 'Real-Time Signal Desk',
@@ -61,44 +64,75 @@ function WhyIcon({ type }) {
 }
 
 function WhyChooseSection() {
+  const reduceMotion = useReducedMotion()
+  const inViewMotion = getInViewMotion(reduceMotion)
+  const leftContentVariants = createStaggerContainer(0.11, 0.04)
+  const featuresContainer = createStaggerContainer(0.16, 0.1)
+
   return (
-    <section id="why" className="pt-16">
+    <motion.section id="why" className="pt-16" variants={revealVariants} {...inViewMotion}>
       <div className="reason-shell why-shell p-6 sm:p-8 lg:p-10">
         <div className="why-layout grid gap-10 xl:grid-cols-[0.95fr_1.35fr] xl:items-start">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-orange-300">Why Overxbit</p>
-            <h2 className="mt-3 font-display text-4xl text-white sm:text-5xl">
+          <motion.div
+            variants={leftContentVariants}
+            initial={reduceMotion ? false : 'hidden'}
+            whileInView="visible"
+            viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}
+          >
+            <motion.p variants={revealVariants} className="text-xs uppercase tracking-[0.2em] text-orange-300">Why Overxbit</motion.p>
+            <motion.h2 variants={revealVariants} className="mt-3 font-display text-4xl text-white sm:text-5xl">
               Why Traders
               <span className="text-gradient"> Choose Us?</span>
-            </h2>
-            <p className="mt-5 max-w-md leading-8 text-slate-300">
+            </motion.h2>
+            <motion.p variants={revealVariants} className="mt-5 max-w-md leading-8 text-slate-300">
               We combine signal precision, disciplined risk models, and continuous
               mentoring so your decisions are consistent in any market cycle.
-            </p>
-            <button
+            </motion.p>
+            <motion.button
+              variants={revealVariants}
               type="button"
               className="mt-6 rounded-md bg-gradient-to-r from-orange-500 to-orange-400 px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.08em] text-white shadow-[0_10px_24px_rgba(249,115,22,0.28)]"
+              whileHover={reduceMotion ? undefined : { scale: 1.03 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+              transition={hoverSpring}
             >
               Start Now
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
 
-          <div className="why-features-grid grid gap-0 md:grid-cols-2">
+          <motion.div
+            className="why-features-grid grid gap-0 md:grid-cols-2"
+            variants={featuresContainer}
+            initial={reduceMotion ? false : 'hidden'}
+            whileInView="visible"
+            viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}
+          >
             {reasons.map((item) => (
-              <article key={item.title} className="why-feature px-0 py-5 md:px-6">
-                <div className="why-icon" aria-hidden="true">
+              <motion.article
+                key={item.title}
+                className="why-feature px-0 py-5 md:px-6"
+                variants={revealVariants}
+                whileHover={reduceMotion ? undefined : { y: -4, scale: 1.01 }}
+                transition={hoverSpring}
+              >
+                <motion.div
+                  className="why-icon"
+                  aria-hidden="true"
+                  whileHover={reduceMotion ? undefined : { scale: 1.08, rotate: -4 }}
+                  transition={hoverSpring}
+                >
                   <WhyIcon type={item.icon} />
-                </div>
+                </motion.div>
                 <div>
                   <h3 className="text-xl font-semibold text-white">{item.title}</h3>
                   <p className="mt-2 leading-7 text-slate-300">{item.text}</p>
                 </div>
-              </article>
+              </motion.article>
             ))}
-          </div>
+          </motion.div>
         </div>
       </div>
-    </section>
+    </motion.section>
   )
 }
 

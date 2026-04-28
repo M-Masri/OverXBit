@@ -3,7 +3,7 @@ import SiteFooter from '../section/SiteFooter'
 
 function LoginPage() {
   return (
-    <div className="min-h-screen overflow-x-hidden text-slate-100">
+    <div className="min-h-screen overflow-x-hidden overflow-y-hidden text-slate-100">
       <Header />
 
       <main className="mx-auto w-full max-w-7xl px-5 pb-4 pt-28 sm:px-8 sm:pt-32">
