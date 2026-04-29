@@ -29,7 +29,7 @@ function CryptoTickerStrip() {
     offset: ['start end', 'center center'],
   })
 
-  const y = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [120, -120])
+  const y = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [120, -220])
   const scale = useTransform(scrollYProgress, [0, 1], reduceMotion ? [1, 1] : [0.96, 1])
   const opacity = useTransform(scrollYProgress, [0, 0.25, 1], [0, 1, 1])
 
@@ -70,20 +70,39 @@ function CryptoTickerStrip() {
   }, [coins])
 
   return (
-    <section ref={sectionRef} className="market-scroll-section" aria-label="Live crypto market ticker">
+    <section
+      ref={sectionRef}
+      className="market-scroll-section"
+      aria-label="Live crypto market ticker"
+      style={{
+        maxWidth: '1400px',
+        width: '96vw',
+        position: 'relative',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        margin: 0,
+        padding: 0,
+      }}
+    >
       <motion.div
         className="market-strip-section"
         style={{
           y,
           scale,
           opacity,
+          maxWidth: '1400px',
+          width: '100%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          position: 'sticky',
+          borderTop: 'none',
         }}
       >
-        <div className="market-strip-tilt">
+        <div className="market-strip-tilt" style={{ borderTop: 'none' }}>
           <div className="market-strip-overlay" />
 
-          <div className="market-strip-inner">
-            <h3 className="market-strip-title">Live Crypto Market</h3>
+          <div className="market-strip-inner" style={{ borderTop: 'none' }}>
+            <h3 className="market-strip-title">Live Crypto <span style={{color: '#fb923c'}}>Market</span></h3>
 
             <div className="market-marquee" role="presentation">
               <div className="market-marquee-track">
