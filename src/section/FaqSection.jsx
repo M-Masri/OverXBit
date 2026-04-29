@@ -51,10 +51,6 @@ const faqItems = [
     q: 'How does Over X Bit help investors and traders?',
     a: 'Over X Bit provides professional Bitcoin mining operations with predictable ROI, secure trading support, full transparency backed by blockchain technology, and clear timelines with guaranteed capital return at maturity.',
   },
-  {
-    q: 'What are the practical aspects of investing in Bitcoin?',
-    a: 'Investors need to consider wallets and security, the transaction process, and network activity. Over X Bit guides investors in choosing secure wallet options and manages fee optimization.',
-  },
 ]
 
 function FaqSection() {
@@ -77,17 +73,20 @@ function FaqSection() {
           Frequently Asked <span className="text-gradient">Questions</span>
         </motion.h2>
         <motion.div
-          className="mx-auto mt-10 grid max-w-4xl gap-3"
+          className="mx-auto mt-10 max-w-6xl columns-1 gap-5 lg:columns-2"
           variants={faqContainer}
           initial={reduceMotion ? false : 'hidden'}
           whileInView="visible"
           viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}
         >
           {faqItems.map((item) => (
-            <motion.article key={item.q} className="faq-item surface-card p-5" variants={revealVariants}>
+            <motion.article
+              key={item.q}
+              className="faq-item surface-card mb-3 break-inside-avoid p-5"
+              variants={revealVariants}>
               <button
                 type="button"
-                className="faq-summary w-full cursor-pointer list-none text-left text-lg font-semibold text-white"
+                className="faq-summary w-full cursor-pointer list-none text-left text-md font-semibold text-white"
                 aria-expanded={Boolean(openItems[item.q])}
                 onClick={() => toggleItem(item.q)}
               >

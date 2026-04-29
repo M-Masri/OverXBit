@@ -61,6 +61,7 @@ function HeroSection() {
           }
         >
           <div className="circle-container">
+            <div className="meteor-shine" />
             <img
               src="https://cdn.prod.website-files.com/673c8623b53e085c22dcde7d/673c8790c213543ea74788a0_Red%20Circle%20No%20Glow.png"
               alt=""
@@ -71,11 +72,11 @@ function HeroSection() {
               alt=""
               className="red-glow"
             />
-            <img
+            {/* <img
               src="https://cdn.prod.website-files.com/673c8623b53e085c22dcde7d/673c878ff9abee9c378d3e76_Glow.png"
               alt=""
               className="white-glow"
-            />
+            /> */}
             <div className="red-circle-center">
               <div className="red-circle" />
             </div>
@@ -91,7 +92,7 @@ function HeroSection() {
           variants={heroTitleVariants}
           className="mx-auto mt-3 max-w-4xl font-display text-4xl leading-[1.1] text-white sm:text-6xl"
         >
-          Welcome to OVER X BIT
+          Welcome To OVERXBIT
           <br />
           <motion.span
             className="text-gradient"

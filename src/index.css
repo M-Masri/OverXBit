@@ -110,23 +110,34 @@
     border-radius: 1rem;
   }
 
-  .market-strip-section {
-    position: relative;
-    left: 50%;
-    width: 100vw;
-    max-width: none;
-    transform: translateX(-50%);
-    margin-top: -1.8rem;
-    margin-bottom: 1.5rem;
-    padding: 0;
-    z-index: 12;
-  }
+  .market-scroll-section {
+  position: relative;
+  height: 20vh;
+  width: 100%;
+  margin-top: -80px;
+  pointer-events: none;
+  border-radius: 20px;
+}
+
+.market-strip-section {
+  position: sticky;
+  top: 38vh;
+  width: 100%;
+  border-radius: 20px;
+  overflow-x: hidden;
+  left:0px;
+  z-index: 20;
+  pointer-events: auto;
+  will-change: transform, opacity;
+}
+
 
   .market-strip-tilt {
     position: relative;
-    transform: rotate(-2.5deg);
+    transform: rotate(0deg);
     transform-origin: center;
     overflow: hidden;
+    overflow-x: hidden;
     background-color: #04070f;
     background:
       radial-gradient(circle at 50% 130%, rgba(249, 115, 22, 0.24), rgba(249, 115, 22, 0) 42%),
@@ -137,7 +148,11 @@
     position: absolute;
     inset: 0;
     background:
-      linear-gradient(180deg, rgba(2, 4, 9, 0.4) 0%, rgba(2, 3, 8, 0.55) 100%),
+      linear-gradient(180deg,
+        rgba(2, 4, 9, 0.4) 0%,
+        rgba(2, 3, 8, 0.55) 50%,
+        #38200e 100%
+      ),
       radial-gradient(circle at 20% 25%, rgba(255, 255, 255, 0.08), transparent 24%),
       radial-gradient(circle at 75% 20%, rgba(255, 255, 255, 0.06), transparent 22%),
       radial-gradient(circle at 50% 55%, rgba(249, 115, 22, 0.1), transparent 42%);
@@ -145,7 +160,7 @@
   }
 
   .market-strip-inner {
-    transform: rotate(3.2deg);
+    transform: rotate(0deg);
     min-height: 250px;
     padding: 1.2rem 0;
     position: relative;
@@ -907,6 +922,85 @@
     width: min(95vw, 1144px);
     filter: saturate(1.04);
   }
+
+.meteor-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 5;
+  top:-20px;
+
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 310deg,
+    rgba(255, 255, 255, 0.1) 325deg,
+    rgba(255, 255, 255, 0.85) 340deg,
+    rgba(255, 255, 255, 0.12) 352deg,
+    transparent 360deg
+  );
+
+  mask: radial-gradient(
+    circle,
+    transparent 63.5%,
+    #000 64%,
+    #000 64.7%,
+    transparent 65.2%
+  );
+
+  -webkit-mask: radial-gradient(
+    circle,
+    transparent 63.5%,
+    #000 64%,
+    #000 64.7%,
+    transparent 65.2%
+  );
+
+  opacity: 0;
+  filter: blur(0.6px);
+  animation: meteorBorder 10s ease-out infinite;
+}
+
+/* .meteor-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  filter: blur(4px);
+  opacity: 0.35;
+} */
+
+@keyframes meteorBorder {
+  0% {
+    opacity: 0;
+    transform: rotate(0deg);
+  }
+
+  10% {
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.9;
+  }
+
+  48% {
+    opacity: 0.9;
+    transform: rotate(-260deg);
+  }
+
+  60% {
+    opacity: 0;
+    transform: rotate(-360deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(-360deg);
+  }
+}
 
   .circle-bg-image,
   .red-glow,

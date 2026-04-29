@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion'
 
 const trackedCoins = [
   'bitcoin',
@@ -12,23 +13,25 @@ const trackedCoins = [
 ]
 
 function formatPrice(value) {
-  if (value >= 1000) {
-    return `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
-  }
-
-  if (value >= 1) {
-    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  }
-
-  if (value >= 0.01) {
-    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
-  }
-
+  if (value >= 1000) return `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+  if (value >= 1) return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  if (value >= 0.01) return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
   return `$${value.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 })}`
 }
 
 function CryptoTickerStrip() {
   const [coins, setCoins] = useState([])
+  const sectionRef = useRef(null)
+  const reduceMotion = useReducedMotion()
+
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start end', 'center center'],
+  })
+
+  const y = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [120, -120])
+  const scale = useTransform(scrollYProgress, [0, 1], reduceMotion ? [1, 1] : [0.96, 1])
+  const opacity = useTransform(scrollYProgress, [0, 0.25, 1], [0, 1, 1])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -49,16 +52,12 @@ function CryptoTickerStrip() {
           signal: controller.signal,
         })
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch market data')
-        }
+        if (!response.ok) throw new Error('Failed to fetch market data')
 
         const data = await response.json()
         setCoins(Array.isArray(data) ? data : [])
       } catch (error) {
-        if (error.name !== 'AbortError') {
-          setCoins([])
-        }
+        if (error.name !== 'AbortError') setCoins([])
       }
     }
 
@@ -67,51 +66,58 @@ function CryptoTickerStrip() {
   }, [])
 
   const marqueeItems = useMemo(() => {
-    if (coins.length === 0) {
-      return []
-    }
-
-    return [...coins, ...coins]
+    return coins.length ? [...coins, ...coins] : []
   }, [coins])
 
   return (
-    <section className="market-strip-section" aria-label="Live crypto market ticker">
-      <div className="market-strip-tilt">
-        <div className="market-strip-overlay" />
-        <div className="market-strip-inner">
-          <h3 className="market-strip-title">Live Crypto Market</h3>
-          <div className="market-marquee" role="presentation">
-            <div className="market-marquee-track">
-              {marqueeItems.length > 0 ? (
-                marqueeItems.map((coin, index) => {
-                  const change = coin.price_change_percentage_24h ?? 0
-                  const isUp = change >= 0
+    <section ref={sectionRef} className="market-scroll-section" aria-label="Live crypto market ticker">
+      <motion.div
+        className="market-strip-section"
+        style={{
+          y,
+          scale,
+          opacity,
+        }}
+      >
+        <div className="market-strip-tilt">
+          <div className="market-strip-overlay" />
 
-                  return (
-                    <a
-                      key={`${coin.id}-${index}`}
-                      href={`https://www.coingecko.com/en/coins/${coin.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="market-item"
-                    >
-                      <img src={coin.image} alt={coin.name} className="market-item-icon" loading="lazy" />
-                      <span className="market-item-name">{coin.name}</span>
-                      <span className="market-item-symbol">{coin.symbol?.toUpperCase()}</span>
-                      <span className="market-item-price">{formatPrice(coin.current_price ?? 0)}</span>
-                      <span className={`market-item-change ${isUp ? 'is-up' : 'is-down'}`}>
-                        {isUp ? '▲' : '▼'} {Math.abs(change).toFixed(1)}%
-                      </span>
-                    </a>
-                  )
-                })
-              ) : (
-                <p className="market-loading">Loading live market prices...</p>
-              )}
+          <div className="market-strip-inner">
+            <h3 className="market-strip-title">Live Crypto Market</h3>
+
+            <div className="market-marquee" role="presentation">
+              <div className="market-marquee-track">
+                {marqueeItems.length > 0 ? (
+                  marqueeItems.map((coin, index) => {
+                    const change = coin.price_change_percentage_24h ?? 0
+                    const isUp = change >= 0
+
+                    return (
+                      <a
+                        key={`${coin.id}-${index}`}
+                        href={`https://www.coingecko.com/en/coins/${coin.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="market-item"
+                      >
+                        <img src={coin.image} alt={coin.name} className="market-item-icon" loading="lazy" />
+                        <span className="market-item-name">{coin.name}</span>
+                        <span className="market-item-symbol">{coin.symbol?.toUpperCase()}</span>
+                        <span className="market-item-price">{formatPrice(coin.current_price ?? 0)}</span>
+                        <span className={`market-item-change ${isUp ? 'is-up' : 'is-down'}`}>
+                          {isUp ? '▲' : '▼'} {Math.abs(change).toFixed(1)}%
+                        </span>
+                      </a>
+                    )
+                  })
+                ) : (
+                  <p className="market-loading">Loading live market prices...</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </section>
   )
 }
