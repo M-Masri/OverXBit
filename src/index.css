@@ -131,8 +131,8 @@
     pointer-events: auto;
     will-change: transform, opacity;
     background: rgba(11, 12, 20, 0.1);
-        backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+
   }
 
 
