@@ -4,20 +4,56 @@ import { createStaggerContainer, getInViewMotion, revealVariants } from '../lib/
 
 const faqItems = [
   {
-    q: 'Is this subscription suitable for beginners?',
-    a: 'Yes. We provide a clear beginner path with foundational guidance and execution support.',
+    q: 'What is Bitcoin?',
+    a: 'Bitcoin is a decentralized digital currency that operates on blockchain technology. It is not controlled by any government or bank and aims to solve challenges such as slow transactions, lack of transparency, and higher fees',
   },
   {
-    q: 'How many signals will I receive per week?',
-    a: 'It depends on market conditions, but we typically publish structured daily opportunities on active assets.',
+    q: 'What services does Over X Bit offer?',
+    a: 'Over X Bit offers professional Bitcoin mining and trading services. They ensure secure transactions using advanced tools, conduct in-depth market analysis for strategic trading, and provide expert guidance to maximize earning opportunities.',
   },
   {
-    q: 'Does the service include risk management?',
-    a: 'Absolutely. Every setup includes stop-loss levels, targets, and suggested risk exposure.',
+    q: 'How does blockchain technology work?',
+    a: 'All Bitcoin transactions are recorded on a public blockchain ledger. Each transaction is encrypted with cryptographic algorithms and linked together in blocks, making them tamper-resistant and verifiable.',
   },
   {
-    q: 'How can I communicate with the team?',
-    a: 'Through support channels, the private member community, and weekly follow-up sessions.',
+    q: 'What is the difference between Bitcoin mining and Bitcoin trading?',
+    a: 'Bitcoin mining generates new Bitcoins by validating transactions, requiring powerful hardware and high energy consumption, and offers a fixed ROI through mining rewards. Bitcoin trading involves buying and selling on the market, requiring strong market analysis and risk management skills, with no fixed ROI as profits depend entirely on the chosen strategy.',
+  },
+  {
+    q: 'How does Over X Bit ensure secure transactions?',
+    a: 'Over X Bit ensures every trade or payment is encrypted and protected using advanced blockchain tools. They oversee the transaction process from broadcast to confirmation for reliability and speed.',
+  },
+  {
+    q: 'What are the key features and benefits of Bitcoin?',
+    a: 'Bitcoin offers decentralization, global accessibility, transparency, and low transaction costs. It is globally accepted, requires no conversion, and allows fast cross-border transfers.',
+  },
+  {
+    q: 'What is the history and growth of Bitcoin?',
+    a: 'Bitcoin was launched in 2009 as the first decentralized digital currency. It has grown from a few cents in value to a trillion-dollar asset class, with rising demand for digital assets and growing acceptance for payments by global businesses.',
+  },
+  {
+    q: 'What are the current market trends for Bitcoin?',
+    a: "As of 2025, over 560 million people (~6.8% of the global population) own cryptocurrency, with projections suggesting it could exceed 8% by 2025. Bitcoin's market cap surpassed $1.35 trillion, and daily trading volume averaged $96 billion.",
+  },
+  {
+    q: 'Why should you partner with Over X Bit?',
+    a: 'Over X Bit offers attractive ROI, capital security with a minimum 3 years investment, and dual revenue streams from mining and trading.',
+  },
+  {
+    q: 'What are the real-world applications of Bitcoin?',
+    a: 'Bitcoin can be used for borderless, fast, and cost-efficient transactions, as a store of value and a tradable digital asset, and for business integration such as payments, remittances, and global transfers.',
+  },
+  {
+    q: 'What are the current investment challenges in Bitcoin?',
+    a: 'Challenges include highly volatile prices, complex technical setup for mining operations, no guaranteed ROI from trading activities, and security risks if wallets and transactions are not managed properly.',
+  },
+  {
+    q: 'How does Over X Bit help investors and traders?',
+    a: 'Over X Bit provides professional Bitcoin mining operations with predictable ROI, secure trading support, full transparency backed by blockchain technology, and clear timelines with guaranteed capital return at maturity.',
+  },
+  {
+    q: 'What are the practical aspects of investing in Bitcoin?',
+    a: 'Investors need to consider wallets and security, the transaction process, and network activity. Over X Bit guides investors in choosing secure wallet options and manages fee optimization.',
   },
 ]
 

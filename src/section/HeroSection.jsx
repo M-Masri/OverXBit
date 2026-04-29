@@ -91,7 +91,7 @@ function HeroSection() {
           variants={heroTitleVariants}
           className="mx-auto mt-3 max-w-4xl font-display text-4xl leading-[1.1] text-white sm:text-6xl"
         >
-          Precision Trading Signals
+          Welcome to OVER X BIT
           <br />
           <motion.span
             className="text-gradient"
@@ -111,9 +111,9 @@ function HeroSection() {
           </motion.span>
         </motion.h1>
         <motion.p variants={revealVariants} className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white">
-          Join Overxbit to access real-time market signals, clear risk management,
+         Smart strategies. Trusted results,
           <br className="hidden sm:block" />
-          and expert guidance designed for disciplined performance.
+          Wealth that works. This is smart growth redefined.
         </motion.p>
         <motion.div variants={revealVariants} className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <motion.button

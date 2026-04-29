@@ -84,9 +84,9 @@ function OverxbitFiguresSection() {
   }, [])
 
   return (
-    <section id="figures" ref={sectionRef} className="pt-16">
+    <section id="figures" ref={sectionRef} className="pt-8">
       <motion.div
-        className="figures-shell relative overflow-hidden px-6 py-12 sm:px-10 sm:py-14"
+        className="figures-shell relative overflow-hidden px-6 py-8 sm:px-10 sm:py-10"
         variants={revealVariants}
         {...inViewMotion}
       >
@@ -99,7 +99,7 @@ function OverxbitFiguresSection() {
           </motion.h2>
 
           <motion.div
-            className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
+            className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
             variants={statsContainer}
             initial={reduceMotion ? false : 'hidden'}
             whileInView="visible"

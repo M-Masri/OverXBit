@@ -1,5 +1,6 @@
 import Header from './section/Header'
 import HeroSection from './section/HeroSection'
+import CryptoTickerStrip from './section/CryptoTickerStrip'
 import ChairmanSection from './section/ChairmanSection'
 import OurServicesSection from './section/OurServicesSection'
 import OverxbitFiguresSection from './section/OverxbitFiguresSection'
@@ -18,6 +19,7 @@ function HomePage() {
 
       <main className="mx-auto w-full max-w-7xl px-5 pb-16 pt-0 sm:px-8">
         <HeroSection />
+        <CryptoTickerStrip />
         <ChairmanSection />
         <OurServicesSection />
         <OverxbitFiguresSection />
