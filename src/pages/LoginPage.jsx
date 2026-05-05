@@ -59,10 +59,6 @@ function LoginPage() {
             >
               Login
             </button>
-
-            <p className="mt-5 text-center text-sm text-slate-400">
-              New to Overxbit? <a href="#" className="text-orange-300 hover:text-orange-200">Create account</a>
-            </p>
           </form>
         </section>
       </main>
