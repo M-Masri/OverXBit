@@ -1,4 +1,4 @@
-import { Suspense, useRef } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Sphere, Stars, useTexture } from '@react-three/drei'
 
@@ -58,6 +58,23 @@ function EarthMesh() {
 }
 
 function HeroEarth3D() {
+  const [isTouchDevice, setIsTouchDevice] = useState(false)
+
+  useEffect(() => {
+    const media = window.matchMedia('(pointer: coarse)')
+
+    const updateDeviceType = () => {
+      setIsTouchDevice(media.matches)
+    }
+
+    updateDeviceType()
+    media.addEventListener('change', updateDeviceType)
+
+    return () => {
+      media.removeEventListener('change', updateDeviceType)
+    }
+  }, [])
+
   return (
     <div className="hero-earth-canvas">
       <Canvas dpr={[1, 1.6]} camera={{ position: [0, 0.05, 2.75], fov: 42 }}>
@@ -75,7 +92,8 @@ function HeroEarth3D() {
 
         <OrbitControls
           makeDefault
-          enableRotate
+          enabled={!isTouchDevice}
+          enableRotate={!isTouchDevice}
           enableZoom={false}
           enablePan={false}
           enableDamping
