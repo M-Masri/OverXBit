@@ -1,5 +1,8 @@
+import { Suspense, lazy } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { createStaggerContainer, getLoadMotion, hoverSpring, motionEase, revealVariants } from '../lib/motion'
+
+const HeroEarth3D = lazy(() => import('./HeroEarth3D'))
 
 function HeroSection() {
   const reduceMotion = useReducedMotion()
@@ -26,65 +29,35 @@ function HeroSection() {
     <section id="home" className="hero-shell h-[500px] relative left-1/2 w-screen max-w-none -translate-x-1/2 overflow-hidden px-6 pb-20 pt-12 sm:px-10 sm:pt-16">
       <div className="hero-noise" />
       <motion.div
-        className="home-app-wrapper"
-        initial={reduceMotion ? false : { y: 18, opacity: 0.86 }}
+        className="hero-earth-layer"
+        initial={reduceMotion ? false : { opacity: 0, scale: 1.03 }}
         animate={
           reduceMotion
             ? { opacity: 1 }
             : {
-                y: [18, 10, 18],
-                opacity: [0.9, 1, 0.9],
+                opacity: [0.85, 1, 0.9],
+                scale: [1.03, 1, 1.03],
               }
         }
         transition={
           reduceMotion
             ? { duration: 0 }
             : {
-                duration: 8,
+                duration: 12,
                 ease: 'easeInOut',
                 repeat: Infinity,
               }
         }
       >
-        <motion.div
-          className="circle-wrapper"
-          initial={reduceMotion ? false : { scale: 0.98, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={
-            reduceMotion
-              ? { duration: 0 }
-              : {
-                  duration: 1,
-                  delay: 0.24,
-                  ease: motionEase,
-                }
-          }
-        >
-          <div className="circle-container">
-            <div className="meteor-shine" />
-            <img
-              src="https://cdn.prod.website-files.com/673c8623b53e085c22dcde7d/673c8790c213543ea74788a0_Red%20Circle%20No%20Glow.png"
-              alt=""
-              className="circle-bg-image"
-            />
-            <img
-              src="https://cdn.prod.website-files.com/673c8623b53e085c22dcde7d/673c87ad03ca3526725241f9_Red%20Glow.png"
-              alt=""
-              className="red-glow"
-            />
-            {/* <img
-              src="https://cdn.prod.website-files.com/673c8623b53e085c22dcde7d/673c878ff9abee9c378d3e76_Glow.png"
-              alt=""
-              className="white-glow"
-            /> */}
-            <div className="red-circle-center">
-              <div className="red-circle" />
-            </div>
-          </div>
-        </motion.div>
+        <Suspense fallback={<div className="hero-earth-canvas" />}>
+          <HeroEarth3D />
+        </Suspense>
+        <div className="hero-earth-stars" />
+        <div className="hero-earth-glow" />
+        <div className="hero-earth-core" />
       </motion.div>
       <motion.div
-        className="relative z-20 text-center pt-20"
+        className="relative z-20 text-center pt-20 pointer-events-none"
         variants={heroTextContainer}
         {...loadMotion}
       >
@@ -116,22 +89,14 @@ function HeroSection() {
           <br className="hidden sm:block" />
           Wealth that works. This is smart growth redefined.
         </motion.p>
-        <motion.div variants={revealVariants} className="mt-9 flex flex-wrap items-center justify-center gap-3">
+        <motion.div variants={revealVariants} className="mt-9 flex flex-wrap items-center justify-center gap-3 pointer-events-auto">
           <motion.button
-            className="rounded-full border border-white/15 bg-white/[0.06] px-7 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            className="rounded-full bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-7 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(42,187,175,0.5)] transition hover:brightness-110"
             whileHover={reduceMotion ? undefined : { scale: 1.03 }}
             whileTap={reduceMotion ? undefined : { scale: 0.98 }}
             transition={hoverSpring}
           >
-            Explore Plans
-          </motion.button>
-          <motion.button
-            className="rounded-full bg-gradient-to-r from-orange-500 to-orange-400 px-7 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(249,115,22,0.5)] transition hover:brightness-110"
-            whileHover={reduceMotion ? undefined : { scale: 1.03 }}
-            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-            transition={hoverSpring}
-          >
-            Join Now
+            Learn More
           </motion.button>
         </motion.div>
       </motion.div>

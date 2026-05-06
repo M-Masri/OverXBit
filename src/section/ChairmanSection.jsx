@@ -55,12 +55,11 @@ function ChairmanSection() {
               alt="Miro M. Fallahi"
               className="h-[480px] w-full rounded-2xl object-cover"
             />
-            <div className="chairman-ring" />
           </motion.div>
 
           <motion.article variants={textContainer} initial={reduceMotion ? false : 'hidden'} whileInView="visible" viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}>
             <motion.h3 variants={textVariants} className="text-4xl font-semibold text-white">Miro M. Fallahi</motion.h3>
-            <motion.p variants={textVariants} className="mt-2 text-xl text-orange-300">Founder - Chairman</motion.p>
+            <motion.p variants={textVariants} className="mt-2 text-xl text-[#2ABBAF]">Founder - Chairman</motion.p>
 
             <motion.div variants={textVariants} className="mt-6 space-y-5 text-lg leading-8 text-slate-300">
               <p>
@@ -82,17 +81,6 @@ function ChairmanSection() {
               </p>
               <p>Join our family now, and let&apos;s shape the future together.</p>
             </motion.div>
-
-            <motion.button
-              variants={textVariants}
-              transition={{ duration: 0.7, ease: motionEase, delay: 0.16 }}
-              whileHover={reduceMotion ? undefined : { scale: 1.03 }}
-              whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-              className="mt-8 rounded-full bg-gradient-to-r from-orange-500 to-orange-400 px-7 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(249,115,22,0.45)] transition hover:brightness-110"
-              style={{ transformOrigin: 'center' }}
-            >
-              Become A Member
-            </motion.button>
           </motion.article>
         </div>
       </div>

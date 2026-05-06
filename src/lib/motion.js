@@ -1,6 +1,6 @@
 export const motionEase = [0.22, 1, 0.36, 1]
 
-export const viewportOnce = {
+const viewportOnce = {
   once: true,
   amount: 0.2,
 }
@@ -15,21 +15,6 @@ export const revealVariants = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: {
-      duration: 0.9,
-      ease: motionEase,
-    },
-  },
-}
-
-export const fadeDownVariants = {
-  hidden: {
-    opacity: 0,
-    y: -22,
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
     transition: {
       duration: 0.9,
       ease: motionEase,

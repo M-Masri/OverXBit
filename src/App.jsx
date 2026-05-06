@@ -10,6 +10,7 @@ import FaqSection from './section/FaqSection'
 import ContactUsSection from './section/ContactUsSection'
 import SiteFooter from './section/SiteFooter'
 import LoginPage from './pages/LoginPage'
+import ServicePage from './pages/ServicePage'
 import { Route, Routes } from 'react-router-dom'
 
 function HomePage() {
@@ -39,6 +40,7 @@ function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/services/:slug" element={<ServicePage />} />
     </Routes>
   )
 }

@@ -1,6 +1,5 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { FaFacebookF, FaInstagram, FaLinkedinIn, FaYoutube } from 'react-icons/fa'
-import { FaXTwitter } from 'react-icons/fa6'
+import { FaFacebookF, FaInstagram, FaLinkedinIn } from 'react-icons/fa'
 import { createStaggerContainer, getInViewMotion, hoverSpring, revealVariants } from '../lib/motion'
 import brandLogo from '../assets/OVERXBIT LOGO-04.png'
 
@@ -11,19 +10,9 @@ const socialLinks = [
     icon: FaInstagram,
   },
   {
-    label: 'YouTube',
-    href: '#',
-    icon: FaYoutube,
-  },
-  {
     label: 'Facebook',
     href: '#',
     icon: FaFacebookF,
-  },
-  {
-    label: 'X',
-    href: '#',
-    icon: FaXTwitter,
   },
   {
     label: 'LinkedIn',
@@ -89,10 +78,10 @@ function SiteFooter() {
         <motion.div variants={revealVariants} className='mt-3'>
           <p className="footer-heading">Company</p>
           <ul className="mt-3 space-y-2 text-slate-400">
-            <li><a className="footer-link" href="#">About</a></li>
-            <li><a className="footer-link" href="#">Our Services</a></li>
-            <li><a className="footer-link" href="#">Pricing</a></li>
-            <li><a className="footer-link" href="#">Docs</a></li>
+            <li><a className="footer-link" href="#chairman">About</a></li>
+            <li><a className="footer-link" href="#services">Our Services</a></li>
+            <li><a className="footer-link" href="#why">Why Us</a></li>
+            <li><a className="footer-link" href="#figures">Figures</a></li>
           </ul>
         </motion.div>
 
@@ -102,7 +91,7 @@ function SiteFooter() {
             <li><a className="footer-link" href="#">Account</a></li>
             <li><a className="footer-link" href="#faq">FAQ</a></li>
             <li><a className="footer-link" href="#contact">Contact</a></li>
-            <li><a className="footer-link" href="#">Help Center</a></li>
+            <li><a className="footer-link" href="mailto:info@overxbit.com">Help Center</a></li>
           </ul>
         </motion.div>
 
@@ -122,7 +111,7 @@ function SiteFooter() {
           href="https://www.sawatech.com/"
           target="_blank"
           rel="noopener noreferrer"
-          className="footer-link text-orange-300 hover:text-orange-200"
+          className="footer-link text-[#2ABBAF] hover:text-[#2ABBAF]"
         >
           SawaTech
         </a>

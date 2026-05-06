@@ -8,11 +8,8 @@ const PhoneInput = PhoneInputLib.default ?? PhoneInputLib
 
 const socialLinks = [
   { name: 'Facebook', href: '#', icon: 'facebook' },
-  { name: 'X', href: '#', icon: 'x' },
   { name: 'Instagram', href: '#', icon: 'instagram' },
   { name: 'LinkedIn', href: '#', icon: 'linkedin' },
-  { name: 'YouTube', href: '#', icon: 'youtube' },
-  { name: 'Telegram', href: '#', icon: 'telegram' },
 ]
 
 const contactDetails = [
@@ -143,7 +140,7 @@ function ContactUsSection() {
       <div className="contact-shell p-6 sm:p-8 lg:p-10">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
           <motion.div variants={leftContentVariants} initial={reduceMotion ? false : 'hidden'} whileInView="visible" viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}>
-            <motion.p variants={revealVariants} className="text-xs uppercase tracking-[0.2em] text-orange-300">Contact Us</motion.p>
+            <motion.p variants={revealVariants} className="text-xs uppercase tracking-[0.2em] text-[#2ABBAF]">Get In Touch</motion.p>
             <motion.h2 variants={revealVariants} className="mt-3 font-display text-5xl text-white sm:text-6xl">
               Contact <span className="text-gradient">Us</span>
             </motion.h2>
@@ -258,7 +255,7 @@ function ContactUsSection() {
 
             <motion.button
               type="button"
-              className="mt-6 rounded-xl bg-gradient-to-r from-orange-500 to-orange-400 px-8 py-3 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(249,115,22,0.35)]"
+              className="mt-6 rounded-xl bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-8 py-3 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(42,187,175,0.35)]"
               whileHover={reduceMotion ? undefined : { scale: 1.03 }}
               whileTap={reduceMotion ? undefined : { scale: 0.98 }}
               transition={hoverSpring}

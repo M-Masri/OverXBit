@@ -9,7 +9,7 @@ function LoginPage() {
       <main className="mx-auto w-full max-w-7xl px-5 pb-4 pt-28 sm:px-8 sm:pt-32">
         <section className="login-shell grid gap-8 p-6 sm:p-10 lg:grid-cols-[1fr_1.1fr] lg:gap-12 ">
           <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-orange-300">Member Access</p>
+            <p className="text-xs uppercase tracking-[0.22em] text-[#2ABBAF]">Member Access</p>
             <h1 className="mt-3 font-display text-4xl leading-tight text-white sm:text-5xl">
               Welcome Back to
               <br />
@@ -48,14 +48,14 @@ function LoginPage() {
                 <input type="checkbox" className="h-4 w-4 rounded border-white/20 bg-slate-900" />
                 Remember me
               </label>
-              <a href="#" className="text-sm text-orange-300 hover:text-orange-200">
+              <a href="#" className="text-sm text-[#2ABBAF] hover:text-[#2ABBAF]">
                 Forgot password?
               </a>
             </div>
 
             <button
               type="button"
-              className="mt-6 w-full rounded-xl bg-gradient-to-r from-orange-500 to-orange-400 px-6 py-3 text-sm font-semibold uppercase tracking-[0.06em] text-white shadow-[0_12px_30px_rgba(249,115,22,0.35)] transition hover:brightness-110"
+              className="mt-6 w-full rounded-xl bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-6 py-3 text-sm font-semibold uppercase tracking-[0.06em] text-white shadow-[0_12px_30px_rgba(42,187,175,0.35)] transition hover:brightness-110"
             >
               Login
             </button>

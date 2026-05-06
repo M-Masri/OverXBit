@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import brandLogo from '../assets/OVERXBIT LOGO-04.png'
+import { servicesData } from '../lib/servicesData'
 
 const navLinks = [
-  { label: 'Home', href: '/#home', hash: '#home' },
-  { label: 'Services', href: '/#services', hash: '#services' },
   { label: 'Figures', href: '/#figures', hash: '#figures' },
   { label: 'Why Us', href: '/#why', hash: '#why' },
   { label: 'FAQ', href: '/#faq', hash: '#faq' },
@@ -14,6 +13,8 @@ const navLinks = [
 function Header() {
   const [activeHash, setActiveHash] = useState('#home')
   const [isSticky, setIsSticky] = useState(false)
+  const [isServicesOpen, setIsServicesOpen] = useState(false)
+  const servicesMenuRef = useRef(null)
   // Animation removed
 
   useEffect(() => {
@@ -42,6 +43,28 @@ function Header() {
     }
   }, [])
 
+  useEffect(() => {
+    const onPointerDown = (event) => {
+      if (servicesMenuRef.current && !servicesMenuRef.current.contains(event.target)) {
+        setIsServicesOpen(false)
+      }
+    }
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsServicesOpen(false)
+      }
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [])
+
   return (
     <header
       className={`fixed inset-x-0 top-0 pt-2 pb-2 z-50 transition-colors duration-300 ${isSticky ? 'fixed-nav border-b border-white/10 bg-slate-950/80 backdrop-blur-xl' : 'bg-transparent'}`}
@@ -55,12 +78,57 @@ function Header() {
         <nav
           className="hidden items-center gap-8 -ml-20 md:flex "
         >
+          <a
+            href="/#home"
+            onClick={() => {
+              setActiveHash('#home')
+              setIsServicesOpen(false)
+            }}
+            className={`text-sm transition hover:text-white ${activeHash === '#home' ? 'font-semibold text-[#2ABBAF]' : 'text-slate-400'}`}
+          >
+            Home
+          </a>
+
+          <div className="relative" ref={servicesMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsServicesOpen((prev) => !prev)}
+              className={`inline-flex items-center gap-2 text-sm transition hover:text-white ${activeHash === '#services' || isServicesOpen ? 'font-semibold text-[#2ABBAF]' : 'text-slate-400'}`}
+              aria-haspopup="menu"
+              aria-expanded={isServicesOpen}
+            >
+              Services
+              <span className={`text-[10px] transition-transform ${isServicesOpen ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+
+            {isServicesOpen && (
+              <div className="absolute left-0 top-full z-50 mt-3 w-64 overflow-hidden rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_16px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+                {servicesData.map((service) => (
+                  <Link
+                    key={service.slug}
+                    to={`/services/${service.slug}`}
+                    onClick={() => {
+                      setIsServicesOpen(false)
+                      setActiveHash('#services')
+                    }}
+                    className="block rounded-lg px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
+                  >
+                    {service.title}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
           {navLinks.map((link) => (
             <a
               key={link.hash}
               href={link.href}
-              onClick={() => setActiveHash(link.hash)}
-              className={`text-sm transition hover:text-white ${activeHash === link.hash ? 'font-semibold text-orange-400' : 'text-slate-400'}`}
+              onClick={() => {
+                setActiveHash(link.hash)
+                setIsServicesOpen(false)
+              }}
+              className={`text-sm transition hover:text-white ${activeHash === link.hash ? 'font-semibold text-[#2ABBAF]' : 'text-slate-400'}`}
             >
               {link.label}
             </a>
@@ -70,7 +138,7 @@ function Header() {
           <div>
             <Link
               to="/login"
-              className="header-cta bg-gradient-to-r from-orange-500 to-orange-400 px-5 py-1.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(251,146,60,0.45)] transition hover:brightness-110"
+              className="header-cta bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-5 py-1.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(42,187,175,0.45)] transition hover:brightness-110"
             >
               Login
             </Link>
