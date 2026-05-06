@@ -133,6 +133,7 @@
     will-change: transform, opacity;
     background: rgba(11, 12, 20, 0.1);
     backdrop-filter: blur(20px);
+    touch-action: pan-y;
 
   }
 
@@ -189,6 +190,7 @@
     mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
     -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
     width: 100%;
+    touch-action: pan-y;
   }
 
   .market-marquee-track {
@@ -275,7 +277,14 @@
   }
 
   @media (max-width: 768px) {
+    .market-scroll-section {
+      height: auto;
+      margin-top: 0;
+    }
+
     .market-strip-section {
+      position: relative;
+      top: auto;
       margin-top: -1.2rem;
       margin-bottom: 1rem;
       padding: 0;

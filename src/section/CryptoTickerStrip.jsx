@@ -21,17 +21,34 @@ function formatPrice(value) {
 
 function CryptoTickerStrip() {
   const [coins, setCoins] = useState([])
+  const [isMobile, setIsMobile] = useState(false)
   const sectionRef = useRef(null)
   const reduceMotion = useReducedMotion()
+  const disableTickerParallax = reduceMotion || isMobile
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ['start end', 'center center'],
   })
 
-  const y = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [120, -220])
-  const scale = useTransform(scrollYProgress, [0, 1], reduceMotion ? [1, 1] : [0.96, 1])
-  const opacity = useTransform(scrollYProgress, [0, 0.25, 1], [0, 1, 1])
+  const y = useTransform(scrollYProgress, [0, 1], disableTickerParallax ? [0, 0] : [120, -220])
+  const scale = useTransform(scrollYProgress, [0, 1], disableTickerParallax ? [1, 1] : [0.96, 1])
+  const opacity = useTransform(scrollYProgress, [0, 0.25, 1], disableTickerParallax ? [1, 1, 1] : [0, 1, 1])
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 768px)')
+
+    const syncMobile = () => {
+      setIsMobile(media.matches)
+    }
+
+    syncMobile()
+    media.addEventListener('change', syncMobile)
+
+    return () => {
+      media.removeEventListener('change', syncMobile)
+    }
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
