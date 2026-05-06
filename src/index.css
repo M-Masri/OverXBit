@@ -1136,6 +1136,10 @@
   }
 
   @media (max-width: 768px) {
+    .hero-shell {
+      height: 78vh !important;
+    }
+
     .logo-badge {
       font-size: 1.45rem;
     }
