@@ -89,7 +89,7 @@ function CryptoTickerStrip() {
   return (
     <section
       ref={sectionRef}
-      className="market-scroll-section"
+      className="market-scroll-section overflow-y-hidden"
       aria-label="Live crypto market ticker"
       style={{
         maxWidth: '1400px',
@@ -102,7 +102,7 @@ function CryptoTickerStrip() {
       }}
     >
       <motion.div
-        className="market-strip-section"
+        className="market-strip-section overflow-y-hidden"
         style={{
           y,
           scale,
