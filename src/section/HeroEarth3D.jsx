@@ -8,7 +8,7 @@ const EARTH_SPEC = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/exampl
 const EARTH_NIGHT = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_lights_2048.png'
 const EARTH_CLOUDS = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_clouds_1024.png'
 
-function EarthMesh() {
+function EarthMesh({ isMobileViewport }) {
   const earthRef = useRef(null)
   const cloudRef = useRef(null)
 
@@ -30,7 +30,11 @@ function EarthMesh() {
   })
 
   return (
-    <group rotation={[0.14, 0.24, 0]} position={[0, -2.42, 0]}>
+    <group
+      rotation={isMobileViewport ? [0.12, 0.22, 0] : [0.14, 0.24, 0]}
+      position={isMobileViewport ? [0, -2.02, 0] : [0, -2.42, 0]}
+      scale={isMobileViewport ? 0.82 : 1}
+    >
       <Sphere ref={earthRef} args={[3.2, 180, 180]}>
         <meshPhongMaterial
           map={textures.map}
@@ -59,25 +63,34 @@ function EarthMesh() {
 
 function HeroEarth3D() {
   const [isTouchDevice, setIsTouchDevice] = useState(false)
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
 
   useEffect(() => {
     const media = window.matchMedia('(pointer: coarse)')
+    const mobileMedia = window.matchMedia('(max-width: 768px)')
 
     const updateDeviceType = () => {
       setIsTouchDevice(media.matches)
+      setIsMobileViewport(mobileMedia.matches)
     }
 
     updateDeviceType()
     media.addEventListener('change', updateDeviceType)
+    mobileMedia.addEventListener('change', updateDeviceType)
 
     return () => {
       media.removeEventListener('change', updateDeviceType)
+      mobileMedia.removeEventListener('change', updateDeviceType)
     }
   }, [])
 
+  const cameraConfig = isMobileViewport
+    ? { position: [0, 0.24, 5.7], fov: 34 }
+    : { position: [0, 0.34, 6.1], fov: 28 }
+
   return (
     <div className="hero-earth-canvas">
-      <Canvas dpr={[1, 1.6]} camera={{ position: [0, 0.34, 6.1], fov: 28 }}>
+      <Canvas dpr={[1, 1.6]} camera={cameraConfig}>
         <color attach="background" args={['#020617']} />
         <fog attach="fog" args={['#020617', 4.8, 10.8]} />
 
@@ -87,7 +100,7 @@ function HeroEarth3D() {
 
         <Suspense fallback={null}>
           <Stars radius={35} depth={60} count={1200} factor={2.4} saturation={0} fade speed={0.2} />
-          <EarthMesh />
+          <EarthMesh isMobileViewport={isMobileViewport} />
         </Suspense>
 
         <OrbitControls

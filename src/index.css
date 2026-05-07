@@ -1206,15 +1206,18 @@
     }
 
     .hero-earth-glow {
-      top: 66%;
-      width: 170vw;
-      height: 170vw;
+      top: 58%;
+      width: 128vw;
+      height: 128vw;
+      opacity: 0.58;
+      filter: blur(2.2px);
     }
 
     .hero-earth-core {
-      top: 78%;
-      width: 190vw;
-      height: 190vw;
+      top: 66%;
+      width: 146vw;
+      height: 146vw;
+      opacity: 0.62;
     }
   }
 
