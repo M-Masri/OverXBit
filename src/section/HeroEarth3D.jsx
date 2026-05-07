@@ -30,8 +30,8 @@ function EarthMesh() {
   })
 
   return (
-    <group rotation={[0.08, 0.24, 0]}>
-      <Sphere ref={earthRef} args={[1, 128, 128]}>
+    <group rotation={[0.14, 0.24, 0]} position={[0, -2.42, 0]}>
+      <Sphere ref={earthRef} args={[3.2, 180, 180]}>
         <meshPhongMaterial
           map={textures.map}
           bumpMap={textures.bumpMap}
@@ -44,7 +44,7 @@ function EarthMesh() {
         />
       </Sphere>
 
-      <Sphere ref={cloudRef} args={[1.015, 96, 96]}>
+      <Sphere ref={cloudRef} args={[3.24, 144, 144]}>
         <meshPhongMaterial
           transparent
           opacity={0.16}
@@ -77,9 +77,9 @@ function HeroEarth3D() {
 
   return (
     <div className="hero-earth-canvas">
-      <Canvas dpr={[1, 1.6]} camera={{ position: [0, 0.05, 2.75], fov: 42 }}>
+      <Canvas dpr={[1, 1.6]} camera={{ position: [0, 0.34, 6.1], fov: 28 }}>
         <color attach="background" args={['#020617']} />
-        <fog attach="fog" args={['#020617', 2.7, 7.3]} />
+        <fog attach="fog" args={['#020617', 4.8, 10.8]} />
 
         <ambientLight intensity={0.3} color="#ffffff" />
         <directionalLight position={[2.8, 1.6, 2.4]} intensity={1.45} color="#ffffff" />
@@ -98,11 +98,11 @@ function HeroEarth3D() {
           enablePan={false}
           enableDamping
           dampingFactor={0.06}
-          minPolarAngle={Math.PI / 2 - 0.42}
-          maxPolarAngle={Math.PI / 2 + 0.42}
-          rotateSpeed={0.58}
+          minPolarAngle={Math.PI / 2 - 0.24}
+          maxPolarAngle={Math.PI / 2 + 0.24}
+          rotateSpeed={0.42}
           autoRotate
-          autoRotateSpeed={0.45}
+          autoRotateSpeed={0.34}
         />
       </Canvas>
     </div>

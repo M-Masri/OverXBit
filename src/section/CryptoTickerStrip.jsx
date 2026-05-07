@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion'
+import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
 
 const trackedCoins = [
   'bitcoin',
@@ -21,34 +21,6 @@ function formatPrice(value) {
 
 function CryptoTickerStrip() {
   const [coins, setCoins] = useState([])
-  const [isMobile, setIsMobile] = useState(false)
-  const sectionRef = useRef(null)
-  const reduceMotion = useReducedMotion()
-  const disableTickerParallax = reduceMotion || isMobile
-
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ['start end', 'center center'],
-  })
-
-  const y = useTransform(scrollYProgress, [0, 1], disableTickerParallax ? [0, 0] : [120, -220])
-  const scale = useTransform(scrollYProgress, [0, 1], disableTickerParallax ? [1, 1] : [0.96, 1])
-  const opacity = useTransform(scrollYProgress, [0, 0.25, 1], disableTickerParallax ? [1, 1, 1] : [0, 1, 1])
-
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 768px)')
-
-    const syncMobile = () => {
-      setIsMobile(media.matches)
-    }
-
-    syncMobile()
-    media.addEventListener('change', syncMobile)
-
-    return () => {
-      media.removeEventListener('change', syncMobile)
-    }
-  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -88,30 +60,21 @@ function CryptoTickerStrip() {
 
   return (
     <section
-      ref={sectionRef}
-      className="market-scroll-section overflow-y-hidden"
+      className="market-scroll-section"
       aria-label="Live crypto market ticker"
       style={{
         maxWidth: '1400px',
-        width: '96vw',
+        width: '100%',
         position: 'relative',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        margin: 0,
+        margin: '0 auto',
         padding: 0,
       }}
     >
       <motion.div
-        className="market-strip-section overflow-y-hidden"
+        className="market-strip-section"
         style={{
-          y,
-          scale,
-          opacity,
           maxWidth: '1400px',
           width: '100%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          position: 'sticky',
           borderTop: 'none',
         }}
       >
