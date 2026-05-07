@@ -26,7 +26,7 @@ function HeroSection() {
   const heroTextContainer = createStaggerContainer(0.12, 0.22)
 
   return (
-    <section id="home" className="hero-shell h-[500px] relative left-1/2 w-screen max-w-none -translate-x-1/2 overflow-hidden px-6 pb-20 pt-12 sm:px-10 sm:pt-16">
+    <section id="home" className="hero-shell relative left-1/2 w-screen max-w-none -translate-x-1/2 overflow-hidden px-6 sm:px-10">
       <div className="hero-noise" />
       <motion.div
         className="hero-earth-layer"
@@ -57,48 +57,50 @@ function HeroSection() {
         <div className="hero-earth-core" />
       </motion.div>
       <motion.div
-        className="relative z-20 text-center pt-20 pointer-events-none"
+        className="absolute inset-0 z-20 flex items-center justify-center px-4 text-center pointer-events-none"
         variants={heroTextContainer}
         {...loadMotion}
       >
-        <motion.h1
-          variants={heroTitleVariants}
-          className="mx-auto mt-3 max-w-4xl font-display text-4xl leading-[1.1] text-white sm:text-6xl"
-        >
-          Welcome To OVERXBIT
-          <br />
-          <motion.span
-            className="text-gradient"
-            initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={
-              reduceMotion
-                ? { duration: 0 }
-                : {
-                    duration: 0.7,
-                    delay: 0.34,
-                    ease: motionEase,
-                  }
-            }
+        <div>
+          <motion.h1
+            variants={heroTitleVariants}
+            className="mx-auto mt-3 max-w-4xl font-display text-4xl leading-[1.1] text-white sm:text-6xl"
           >
-            Built For Consistent Growth.
-          </motion.span>
-        </motion.h1>
-        <motion.p variants={revealVariants} className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white">
-         Smart strategies. Trusted results,
-          <br className="hidden sm:block" />
-          Wealth that works. This is smart growth redefined.
-        </motion.p>
-        <motion.div variants={revealVariants} className="mt-9 flex flex-wrap items-center justify-center gap-3 pointer-events-auto">
-          <motion.button
-            className="rounded-full bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-7 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(42,187,175,0.5)] transition hover:brightness-110"
-            whileHover={reduceMotion ? undefined : { scale: 1.03 }}
-            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-            transition={hoverSpring}
-          >
-            Learn More
-          </motion.button>
-        </motion.div>
+            Welcome To OVERXBIT
+            <br />
+            <motion.span
+              className="text-gradient"
+              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : {
+                      duration: 0.7,
+                      delay: 0.34,
+                      ease: motionEase,
+                    }
+              }
+            >
+              Built For Consistent Growth.
+            </motion.span>
+          </motion.h1>
+          <motion.p variants={revealVariants} className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white">
+           Smart strategies. Trusted results,
+            <br className="hidden sm:block" />
+            Wealth that works. This is smart growth redefined.
+          </motion.p>
+          <motion.div variants={revealVariants} className="mt-9 flex flex-wrap items-center justify-center gap-3 pointer-events-auto">
+            <motion.button
+              className="rounded-full bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-7 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(42,187,175,0.5)] transition hover:brightness-110"
+              whileHover={reduceMotion ? undefined : { scale: 1.03 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+              transition={hoverSpring}
+            >
+              Learn More
+            </motion.button>
+          </motion.div>
+        </div>
       </motion.div>
     </section>
   )

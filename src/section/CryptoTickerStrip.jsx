@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
 
 const trackedCoins = [
   'bitcoin',
   'ethereum',
   'solana',
+  'xrp',
+  'dogecoin',
+  'cardano',
+  'toncoin',
+  'avalanche-2',
+  'polkadot',
   'chainlink',
   'cronos',
   'bittensor',
@@ -21,6 +26,7 @@ function formatPrice(value) {
 
 function CryptoTickerStrip() {
   const [coins, setCoins] = useState([])
+  const [isCompactViewport, setIsCompactViewport] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -54,23 +60,70 @@ function CryptoTickerStrip() {
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1024px)')
+
+    const syncViewport = () => {
+      setIsCompactViewport(media.matches)
+    }
+
+    syncViewport()
+    media.addEventListener('change', syncViewport)
+
+    return () => {
+      media.removeEventListener('change', syncViewport)
+    }
+  }, [])
+
   const marqueeItems = useMemo(() => {
-    return coins.length ? [...coins, ...coins] : []
+    const topCoins = coins.filter((_, index) => index % 2 === 0)
+    const source = topCoins.length ? topCoins : coins
+    return source.length ? [...source, ...source, ...source] : []
   }, [coins])
+
+  const bottomMarqueeItems = useMemo(() => {
+    const bottomCoins = coins.filter((_, index) => index % 2 === 1)
+    const source = bottomCoins.length ? bottomCoins : coins
+    return source.length ? [...source, ...source, ...source] : []
+  }, [coins])
+
+  const renderCoinItem = (coin, index, row) => {
+    const change = coin.price_change_percentage_24h ?? 0
+    const isUp = change >= 0
+
+    return (
+      <a
+        key={`${row}-${coin.id}-${index}`}
+        href={`https://www.coingecko.com/en/coins/${coin.id}`}
+        target="_blank"
+        rel="noreferrer"
+        className="market-item"
+      >
+        <img src={coin.image} alt={coin.name} className="market-item-icon" loading="lazy" />
+        <span className="market-item-name">{coin.name}</span>
+        <span className="market-item-symbol">{coin.symbol?.toUpperCase()}</span>
+        <span className="market-item-price">{formatPrice(coin.current_price ?? 0)}</span>
+        <span className={`market-item-change ${isUp ? 'is-up' : 'is-down'}`}>
+          {isUp ? '▲' : '▼'} {Math.abs(change).toFixed(1)}%
+        </span>
+      </a>
+    )
+  }
 
   return (
     <section
       className="market-scroll-section"
       aria-label="Live crypto market ticker"
       style={{
-        maxWidth: '1400px',
-        width: '100%',
+        width: '100vw',
+        maxWidth: 'none',
         position: 'relative',
-        margin: '0 auto',
+        marginInline: 'calc(50% - 50vw)',
+        marginTop: isCompactViewport ? '1.2rem' : '-0.9rem',
         padding: 0,
       }}
     >
-      <motion.div
+      <div
         className="market-strip-section"
         style={{
           maxWidth: '1400px',
@@ -84,39 +137,24 @@ function CryptoTickerStrip() {
           <div className="market-strip-inner" style={{ borderTop: 'none' }}>
             <h3 className="market-strip-title">Live Crypto <span style={{color: '#2ABBAF'}}>Market</span></h3>
 
-            <div className="market-marquee" role="presentation">
-              <div className="market-marquee-track">
-                {marqueeItems.length > 0 ? (
-                  marqueeItems.map((coin, index) => {
-                    const change = coin.price_change_percentage_24h ?? 0
-                    const isUp = change >= 0
+            <div className="market-marquee-stack" role="presentation">
+              <div className="market-marquee">
+                <div className="market-marquee-track">
+                  {marqueeItems.length > 0 ? marqueeItems.map((coin, index) => renderCoinItem(coin, index, 'top')) : null}
+                </div>
+              </div>
 
-                    return (
-                      <a
-                        key={`${coin.id}-${index}`}
-                        href={`https://www.coingecko.com/en/coins/${coin.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="market-item"
-                      >
-                        <img src={coin.image} alt={coin.name} className="market-item-icon" loading="lazy" />
-                        <span className="market-item-name">{coin.name}</span>
-                        <span className="market-item-symbol">{coin.symbol?.toUpperCase()}</span>
-                        <span className="market-item-price">{formatPrice(coin.current_price ?? 0)}</span>
-                        <span className={`market-item-change ${isUp ? 'is-up' : 'is-down'}`}>
-                          {isUp ? '▲' : '▼'} {Math.abs(change).toFixed(1)}%
-                        </span>
-                      </a>
-                    )
-                  })
-                ) : (
-                  <p className="market-loading">Loading live market prices...</p>
-                )}
+              <div className="market-marquee market-marquee-secondary">
+                <div className="market-marquee-track is-reverse">
+                  {bottomMarqueeItems.length > 0 ? bottomMarqueeItems.map((coin, index) => renderCoinItem(coin, index, 'bottom')) : null}
+                </div>
               </div>
             </div>
+
+            {marqueeItems.length === 0 ? <p className="market-loading">Loading live market prices...</p> : null}
           </div>
         </div>
-      </motion.div>
+      </div>
     </section>
   )
 }
