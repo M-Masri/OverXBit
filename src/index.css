@@ -49,8 +49,8 @@
 
   .bg-grid {
     background-image:
-      radial-gradient(circle at 12% 4%, rgba(42, 187, 175, 0.18), transparent 26%),
-      radial-gradient(circle at 75% 10%, rgba(42, 187, 175, 0.12), transparent 25%),
+      radial-gradient(150% 60% at 50% 2%, rgba(22, 42, 108, 0.38) 0%, rgba(22, 42, 108, 0.24) 28%, rgba(22, 42, 108, 0.12) 44%, rgba(22, 42, 108, 0) 62%),
+      radial-gradient(180% 68% at 50% 0%, rgba(14, 27, 88, 0.28) 0%, rgba(14, 27, 88, 0.16) 26%, rgba(14, 27, 88, 0.08) 40%, rgba(14, 27, 88, 0) 58%),
       linear-gradient(180deg, #050505 0%, #09090b 45%, #050505 100%);
   }
 
@@ -104,9 +104,10 @@
 
   .figures-shell {
     background:
-      radial-gradient(circle at 14% 12%, rgba(42, 187, 175, 0.34), transparent 42%),
-      radial-gradient(circle at 86% 8%, rgba(42, 187, 175, 0.3), transparent 38%),
-      linear-gradient(130deg, #1b1209 0%, #140d08 45%, #0a0908 100%);
+      radial-gradient(80% 70% at 10% -8%, rgba(2, 6, 56, 0.88) 0%, rgba(4, 10, 68, 0.55) 44%, rgba(4, 10, 68, 0) 78%),
+      radial-gradient(92% 78% at 88% -6%, rgba(0, 1, 45, 0.98) 0%, rgba(2, 5, 58, 0.92) 36%, rgba(7, 16, 82, 0.58) 60%, rgba(7, 16, 82, 0) 82%),
+      linear-gradient(140deg, rgba(109, 164, 214, 0.66) 0%, rgba(87, 138, 190, 0.46) 23%, rgba(54, 92, 149, 0.24) 42%, rgba(54, 92, 149, 0) 60%),
+      linear-gradient(140deg, #060a4a 0%, #12286d 48%, #325c8a 100%);
     border-top: 1px solid rgba(42, 187, 175, 0.28);
     border-radius: 1rem;
   }
@@ -406,28 +407,28 @@
   .contact-input {
     width: 100%;
     border-radius: 0.7rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(18, 20, 27, 0.92);
+    border: 1px solid rgba(166, 199, 232, 0.28);
+    background: linear-gradient(180deg, rgba(9, 25, 80, 0.76) 0%, rgba(12, 34, 92, 0.72) 100%);
     padding: 0.75rem 0.9rem;
     font-size: 0.95rem;
-    color: #fff;
+    color: #f8fbff;
     outline: none;
   }
 
   .contact-input::placeholder {
-    color: #94a3b8;
+    color: #bfd2e9;
   }
 
   .contact-input:focus {
-    border-color: rgba(42, 187, 175, 0.6);
-    box-shadow: 0 0 0 3px rgba(42, 187, 175, 0.18);
+    border-color: rgba(187, 220, 247, 0.74);
+    box-shadow: 0 0 0 3px rgba(154, 202, 240, 0.22);
   }
 
   .contact-select {
     appearance: none;
     background-image:
-      linear-gradient(45deg, transparent 50%, rgba(42, 187, 175, 0.95) 50%),
-      linear-gradient(135deg, rgba(42, 187, 175, 0.95) 50%, transparent 50%);
+      linear-gradient(45deg, transparent 50%, rgba(194, 223, 246, 0.96) 50%),
+      linear-gradient(135deg, rgba(194, 223, 246, 0.96) 50%, transparent 50%);
     background-position:
       calc(100% - 16px) calc(50% - 3px),
       calc(100% - 10px) calc(50% - 3px);
@@ -444,30 +445,30 @@
     width: 100% !important;
     min-height: 46px !important;
     border-radius: 0.7rem !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    background: rgba(18, 20, 27, 0.92) !important;
+    border: 1px solid rgba(166, 199, 232, 0.28) !important;
+    background: linear-gradient(180deg, rgba(9, 25, 80, 0.76) 0%, rgba(12, 34, 92, 0.72) 100%) !important;
     padding: 0.75rem 0.9rem 0.75rem 3.25rem !important;
     font-size: 0.95rem !important;
     line-height: 1.2 !important;
-    color: #fff !important;
+    color: #f8fbff !important;
     font-family: var(--font-brand) !important;
   }
 
   .contact-phone-input:focus {
-    border-color: rgba(42, 187, 175, 0.6) !important;
-    box-shadow: 0 0 0 3px rgba(42, 187, 175, 0.18) !important;
+    border-color: rgba(187, 220, 247, 0.74) !important;
+    box-shadow: 0 0 0 3px rgba(154, 202, 240, 0.22) !important;
   }
 
   .contact-phone-input::placeholder {
-    color: #94a3b8 !important;
+    color: #bfd2e9 !important;
   }
 
   .contact-phone-button {
     width: 42px !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(166, 199, 232, 0.28) !important;
     border-right: 0 !important;
     border-radius: 0.7rem 0 0 0.7rem !important;
-    background: rgba(18, 20, 27, 0.92) !important;
+    background: linear-gradient(180deg, rgba(9, 25, 80, 0.78) 0%, rgba(11, 31, 88, 0.76) 100%) !important;
   }
 
   .contact-phone-container .selected-flag {
@@ -479,19 +480,19 @@
 
   .contact-phone-container .selected-flag:hover,
   .contact-phone-container .selected-flag:focus {
-    background: rgba(42, 187, 175, 0.12) !important;
+    background: rgba(154, 202, 240, 0.18) !important;
   }
 
   .contact-phone-container .selected-flag .arrow {
     display: block !important;
-    border-top-color: rgba(42, 187, 175, 0.9) !important;
+    border-top-color: rgba(199, 227, 248, 0.95) !important;
   }
 
   .contact-phone-container .country-list {
     margin-top: 0.45rem !important;
     border-radius: 0.75rem !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    background: linear-gradient(180deg, rgba(14, 19, 34, 0.98) 0%, rgba(12, 17, 30, 0.98) 100%) !important;
+    border: 1px solid rgba(166, 199, 232, 0.24) !important;
+    background: linear-gradient(180deg, rgba(8, 21, 66, 0.98) 0%, rgba(10, 30, 83, 0.98) 100%) !important;
     box-shadow: 0 18px 32px rgba(0, 0, 0, 0.45) !important;
     color: #e2e8f0 !important;
   }
@@ -505,17 +506,17 @@
     width: 100% !important;
     margin: 0 !important;
     border-radius: 0.55rem !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    background: rgba(18, 20, 27, 0.96) !important;
-    color: #fff !important;
+    border: 1px solid rgba(166, 199, 232, 0.24) !important;
+    background: rgba(8, 22, 70, 0.95) !important;
+    color: #f8fbff !important;
     font-family: var(--font-brand) !important;
     font-size: 0.88rem !important;
     padding: 0.45rem 0.7rem !important;
   }
 
   .contact-phone-container .country-list .search-box:focus {
-    border-color: rgba(42, 187, 175, 0.6) !important;
-    box-shadow: 0 0 0 2px rgba(42, 187, 175, 0.16) !important;
+    border-color: rgba(187, 220, 247, 0.7) !important;
+    box-shadow: 0 0 0 2px rgba(154, 202, 240, 0.2) !important;
     outline: none !important;
   }
 
@@ -530,13 +531,13 @@
 
   .contact-phone-container .country-list .country:hover,
   .contact-phone-container .country-list .country.highlight {
-    background: rgba(42, 187, 175, 0.14) !important;
+    background: rgba(141, 193, 236, 0.2) !important;
     color: #fff !important;
   }
 
   .contact-phone-container .country-list .country:hover .dial-code,
   .contact-phone-container .country-list .country.highlight .dial-code {
-    color: #2ABBAF !important;
+    color: #d6ecff !important;
   }
 
   .contact-label {
@@ -549,9 +550,31 @@
     border-radius: 1rem;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background:
-      radial-gradient(circle at 12% 0%, rgba(42, 187, 175, 0.16), transparent 34%),
-      linear-gradient(180deg, rgba(14, 19, 34, 0.94) 0%, rgba(12, 17, 30, 0.94) 100%);
+      radial-gradient(80% 70% at 10% -8%, rgba(2, 6, 56, 0.88) 0%, rgba(4, 10, 68, 0.55) 44%, rgba(4, 10, 68, 0) 78%),
+      radial-gradient(92% 78% at 88% -6%, rgba(0, 1, 45, 0.98) 0%, rgba(2, 5, 58, 0.92) 36%, rgba(7, 16, 82, 0.58) 60%, rgba(7, 16, 82, 0) 82%),
+      linear-gradient(140deg, rgba(109, 164, 214, 0.66) 0%, rgba(87, 138, 190, 0.46) 23%, rgba(54, 92, 149, 0.24) 42%, rgba(54, 92, 149, 0) 60%),
+      linear-gradient(140deg, #060a4a 0%, #12286d 48%, #325c8a 100%);
     box-shadow: 0 18px 35px rgba(0, 0, 0, 0.3);
+  }
+
+  .contact-submit-btn {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(198, 225, 246, 0.28);
+    background: linear-gradient(135deg, #70a9dc 0%, #3d6fa8 44%, #213f7f 100%);
+    color: #f9fcff;
+    box-shadow: 0 12px 28px rgba(10, 26, 74, 0.45);
+    transition: border-color 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+  }
+
+  .contact-submit-btn:hover {
+    border-color: rgba(215, 236, 252, 0.52);
+    box-shadow: 0 14px 30px rgba(11, 33, 88, 0.52);
+    filter: brightness(1.06);
+  }
+
+  .contact-submit-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(154, 202, 240, 0.28), 0 14px 30px rgba(11, 33, 88, 0.52);
   }
 
   .contact-detail-item {
@@ -804,23 +827,16 @@
     position: absolute;
     inset: -10% -5% auto -5%;
     height: 74%;
-    background:
-      radial-gradient(85% 140% at 30% 12%, rgba(42, 187, 175, 0.32), transparent 56%),
-      radial-gradient(95% 130% at 76% 12%, rgba(42, 187, 175, 0.3), transparent 58%),
-      radial-gradient(70% 120% at 60% 30%, rgba(194, 65, 12, 0.22), transparent 62%);
-    filter: blur(18px);
+    background: none;
+    filter: none;
     pointer-events: none;
   }
 
   .figures-orbs {
     position: absolute;
     inset: 0;
-    background:
-      radial-gradient(circle at 12% 78%, rgba(42, 187, 175, 0.18), transparent 30%),
-      radial-gradient(circle at 88% 76%, rgba(42, 187, 175, 0.16), transparent 26%),
-      radial-gradient(circle at 22% 20%, rgba(255, 255, 255, 0.1), transparent 10%),
-      radial-gradient(circle at 78% 12%, rgba(255, 255, 255, 0.08), transparent 8%);
-    opacity: 0.6;
+    background: none;
+    opacity: 1;
     pointer-events: none;
   }
 
@@ -1464,17 +1480,17 @@
 
   .service-wave-card.step-1 {
     left: clamp(1rem, 10vw, 10rem);
-    top: 76%;
+    top: 65%;
   }
 
   .service-wave-card.step-2 {
-    left: 40%;
-    top: 47%;
+    left: 42%;
+    top: 50%;
   }
 
   .service-wave-card.step-3 {
-    right: clamp(1rem, 10vw, 10rem);
-    top: 28%;
+    right: clamp(1rem, 10vw, 7rem);
+    top: 10%;
   }
 
   .service-wave-point {

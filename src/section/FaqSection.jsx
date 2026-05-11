@@ -16,7 +16,7 @@ const faqItems = [
     a: 'All Bitcoin transactions are recorded on a public blockchain ledger. Each transaction is encrypted with cryptographic algorithms and linked together in blocks, making them tamper-resistant and verifiable.',
   },
   {
-    q: 'What is the difference between Bitcoin mining and Bitcoin trading?',
+    q: 'What difference between Bitcoin mining and Bitcoin trading?',
     a: 'Bitcoin mining generates new Bitcoins by validating transactions, requiring powerful hardware and high energy consumption, and offers a fixed ROI through mining rewards. Bitcoin trading involves buying and selling on the market, requiring strong market analysis and risk management skills, with no fixed ROI as profits depend entirely on the chosen strategy.',
   },
   {
@@ -86,7 +86,7 @@ function FaqSection() {
               variants={revealVariants}>
               <button
                 type="button"
-                className="faq-summary w-full cursor-pointer list-none text-left text-md font-semibold text-white"
+                className={`faq-summary w-full cursor-pointer list-none text-left font-semibold text-white ${item.q === 'What is the difference between Bitcoin mining and Bitcoin trading?' ? 'text-sm leading-6 sm:text-[0.95rem]' : 'text-md'}`}
                 aria-expanded={Boolean(openItems[item.q])}
                 onClick={() => toggleItem(item.q)}
               >

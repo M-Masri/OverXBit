@@ -255,7 +255,7 @@ function ContactUsSection() {
 
             <motion.button
               type="button"
-              className="mt-6 rounded-xl bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-8 py-3 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(42,187,175,0.35)]"
+              className="contact-submit-btn mt-6 px-8 py-3 text-sm font-semibold"
               whileHover={reduceMotion ? undefined : { scale: 1.03 }}
               whileTap={reduceMotion ? undefined : { scale: 0.98 }}
               transition={hoverSpring}

@@ -91,12 +91,41 @@ function ServicePage() {
               viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}
             >
               <svg className="service-wave-line" viewBox="0 0 1000 280" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                  <marker
+                    id="serviceTrendArrow"
+                    viewBox="0 0 18 16"
+                    refX="12"
+                    refY="8"
+                    markerWidth="10"
+                    markerHeight="10"
+                    orient="auto"
+                    markerUnits="strokeWidth"
+                  >
+                    <path
+                      d="M1 2.2 L14.5 8 L1 13.8 L4.2 8 Z"
+                      fill="rgba(109, 164, 214, 0.98)"
+                      strokeLinejoin="round"
+                    />
+                  </marker>
+                </defs>
+
                 <path
-                  d="M30 225 C 160 290, 230 95, 360 145 C 490 195, 560 65, 690 105 C 810 140, 900 85, 970 45"
+                  d="M20 238 L66 224 L95 205 L121 219 L145 192 L164 208 L183 176 L200 198 L219 170 L238 206 L258 182 L290 158 L321 208 L355 182 L389 151 L416 166 L444 135 L476 110 L500 128 L520 102 L537 125 L557 95 L587 151 L624 113 L662 84 L700 54 L736 79 L768 47 L807 61 L842 39 L874 27 L918 19 L952 12"
                   fill="none"
-                  stroke="rgba(42, 187, 175, 0.85)"
-                  strokeWidth="6"
+                  stroke="rgba(109, 164, 214, 0.28)"
+                  strokeWidth="8.4"
                   strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M20 238 L66 224 L95 205 L121 219 L145 192 L164 208 L183 176 L200 198 L219 170 L238 206 L258 182 L290 158 L321 208 L355 182 L389 151 L416 166 L444 135 L476 110 L500 128 L520 102 L537 125 L557 95 L587 151 L624 113 L662 84 L700 54 L736 79 L768 47 L807 61 L842 39 L874 27 L918 19 L952 12"
+                  fill="none"
+                  stroke="rgba(109, 164, 214, 0.95)"
+                  strokeWidth="6.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  markerEnd="url(#serviceTrendArrow)"
                 />
               </svg>
 
@@ -127,28 +156,6 @@ function ServicePage() {
                 <p className="service-wave-step-text">{processDetails[2]}</p>
               </motion.article>
             </motion.div>
-          </div>
-        </motion.section>
-
-        <motion.section className="mt-12" variants={revealVariants} {...inViewMotion}>
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="service-eyebrow">Service Gallery</p>
-              <h2 className="mt-2 font-display text-3xl text-white sm:text-4xl">Experience Snapshot</h2>
-            </div>
-          </div>
-
-          <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-            {galleryImages.map((image, index) => (
-              <motion.article
-                key={`${image}-${index}`}
-                className="service-ref-gallery-card"
-                whileHover={reduceMotion ? undefined : { y: -4 }}
-                transition={hoverSpring}
-              >
-                <img src={image} alt={`${service.title} ${index + 1}`} loading="lazy" className="service-ref-gallery-image" />
-              </motion.article>
-            ))}
           </div>
         </motion.section>
 
