@@ -119,7 +119,7 @@ function CryptoTickerStrip() {
         maxWidth: 'none',
         position: 'relative',
         marginInline: 'calc(50% - 50vw)',
-        marginTop: isCompactViewport ? '1.2rem' : '-0.9rem',
+        marginTop: isCompactViewport ? '-1.6rem' : '-4rem',
         padding: 0,
       }}
     >

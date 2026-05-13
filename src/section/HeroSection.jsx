@@ -1,44 +1,166 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { createStaggerContainer, getLoadMotion, hoverSpring, motionEase, revealVariants } from '../lib/motion'
+import { createStaggerContainer, getLoadMotion } from '../lib/motion'
+
+function HeroRimHighlight({ begin = '0s', duration = '4.2s', baseOpacity = 0.95 }) {
+  return (
+    <g opacity={baseOpacity}>
+      <rect
+        x="-40"
+        y="-1.35"
+        width="80"
+        height="2.7"
+        rx="999"
+        fill="url(#hero-rim-trail)"
+        filter="url(#hero-rim-blur)"
+      />
+      <rect
+        x="-34"
+        y="-1.05"
+        width="68"
+        height="2.1"
+        rx="999"
+        fill="url(#hero-rim-streak)"
+        transform="rotate(-12)"
+        filter="url(#hero-rim-blur)"
+      />
+      <rect
+        x="-28"
+        y="-0.75"
+        width="56"
+        height="1.5"
+        rx="999"
+        fill="url(#hero-rim-ray)"
+        transform="rotate(10)"
+        filter="url(#hero-rim-blur)"
+      />
+      <animateMotion dur={duration} begin={begin} repeatCount="indefinite" rotate="auto" calcMode="linear" keyPoints="1;0" keyTimes="0;1">
+        <mpath href="#hero-earth-rim-path" />
+      </animateMotion>
+      <animate
+        attributeName="opacity"
+        values="0;0.14;0.9;1;0.62;0"
+        keyTimes="0;0.16;0.42;0.58;0.78;1"
+        calcMode="spline"
+        keySplines="0.32 0 0.18 1;0.32 0 0.18 1;0.32 0 0.18 1;0.32 0 0.18 1;0.32 0 0.18 1"
+        dur={duration}
+        begin={begin}
+        repeatCount="indefinite"
+      />
+    </g>
+  )
+}
 
 function HeroSection() {
   const reduceMotion = useReducedMotion()
   const loadMotion = getLoadMotion(reduceMotion)
-
-  const heroTitleVariants = {
+  const heroMotionEase = [0.16, 1, 0.3, 1]
+  const heroMediaVariants = {
     hidden: {
       opacity: 0,
-      y: 35,
+      scale: 1.06,
+      y: 16,
+      filter: 'blur(10px)',
+    },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      filter: 'blur(0px)',
+      transition: {
+        duration: 1.7,
+        ease: heroMotionEase,
+      },
+    },
+  }
+
+  const heroOverlayVariants = {
+    hidden: {
+      opacity: 0,
+    },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 1.35,
+        ease: heroMotionEase,
+      },
+    },
+  }
+
+  const heroCopyVariants = {
+    hidden: {
+      opacity: 0,
+      y: 14,
     },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.9,
-        ease: motionEase,
+        duration: 1.25,
+        ease: heroMotionEase,
       },
     },
   }
 
-  const heroTextContainer = createStaggerContainer(0.12, 0.22)
+  const heroCtaVariants = {
+    hidden: {
+      opacity: 0,
+      y: 12,
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 1.3,
+        ease: heroMotionEase,
+      },
+    },
+  }
+
+  const heroButtonTransition = reduceMotion
+    ? { duration: 0 }
+    : {
+        duration: 0.42,
+        ease: heroMotionEase,
+      }
+
+  const heroTitleVariants = {
+    hidden: {
+      opacity: 0,
+      y: 16,
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 1.35,
+        ease: heroMotionEase,
+      },
+    },
+  }
+
+  const heroTextContainer = createStaggerContainer(0.18, 0.16)
 
   return (
     <section id="home" className="hero-shell relative left-1/2 w-screen max-w-none -translate-x-1/2 overflow-hidden">
-      <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none">
+      <motion.div className="absolute inset-0 z-10 pointer-events-none" variants={heroMediaVariants} {...loadMotion}>
         <img
           src="/assets/hero-static.webp"
           alt=""
-          className="block w-full h-auto object-bottom"
+          className="block h-full w-full object-cover object-bottom"
+          style={{
+            WebkitMaskImage: 'linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 74%, rgba(0, 0, 0, 0.82) 84%, rgba(0, 0, 0, 0.28) 94%, rgba(0, 0, 0, 0) 100%)',
+            maskImage: 'linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 74%, rgba(0, 0, 0, 0.82) 84%, rgba(0, 0, 0, 0.28) 94%, rgba(0, 0, 0, 0) 100%)',
+          }}
           loading="eager"
         />
-      </div>
+      </motion.div>
 
-      <div className="absolute inset-x-0 bottom-[14%] z-[14] h-[60%] pointer-events-none overflow-hidden">
-        <svg className="h-full w-full" viewBox="0 0 1000 320" preserveAspectRatio="none" aria-hidden="true">
+      <div className="absolute inset-0 z-[14] pointer-events-none overflow-hidden">
+        <svg className="h-full w-full" viewBox="0 0 1000 640" preserveAspectRatio="none" aria-hidden="true">
           <defs>
             <path
               id="hero-earth-rim-path"
-              d="M 1066 382 C 1058 374, 1036 334, 994 286 C 936 226, 860 172, 754 108 C 700 82, 652 66, 608 58 C 570 53, 534 51, 500 50 C 466 50, 430 53, 392 58 C 348 64, 300 79, 246 101 C 140 168, 64 220, 6 280 C -36 330, -58 370, -66 378"
+              d="M 122 361 C 245 272, 390 226, 540 229 C 650 232, 750 257, 866 318"
             />
             <linearGradient id="hero-rim-trail" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="rgba(255, 226, 170, 0)" />
@@ -66,128 +188,90 @@ function HeroSection() {
             </filter>
           </defs>
 
-          <g opacity={reduceMotion ? 0.45 : 1}>
-            <g>
+          {reduceMotion ? (
+            <g opacity="0.46" transform="translate(840 132)">
               <rect
-                x="-90"
-                y="-2.6"
-                width="180"
-                height="5.2"
+                x="-40"
+                y="-1.35"
+                width="80"
+                height="2.7"
                 rx="999"
                 fill="url(#hero-rim-trail)"
                 filter="url(#hero-rim-blur)"
               />
               <rect
-                x="-78"
-                y="-2.1"
-                width="156"
-                height="4.2"
+                x="-34"
+                y="-1.05"
+                width="68"
+                height="2.1"
                 rx="999"
                 fill="url(#hero-rim-streak)"
-                transform="rotate(-16)"
+                transform="rotate(-12)"
                 filter="url(#hero-rim-blur)"
               />
               <rect
-                x="-72"
-                y="-1.3"
-                width="144"
-                height="2.6"
+                x="-28"
+                y="-0.75"
+                width="56"
+                height="1.5"
                 rx="999"
                 fill="url(#hero-rim-ray)"
-                transform="rotate(14)"
+                transform="rotate(10)"
                 filter="url(#hero-rim-blur)"
               />
-              <rect
-                x="-72"
-                y="-1"
-                width="144"
-                height="2"
-                rx="999"
-                fill="url(#hero-rim-ray)"
-                transform="rotate(-30)"
-                filter="url(#hero-rim-blur)"
-              />
-              <rect
-                x="-62"
-                y="-1.1"
-                width="124"
-                height="2.2"
-                rx="999"
-                fill="url(#hero-rim-ray)"
-                transform="rotate(-14)"
-                filter="url(#hero-rim-blur)"
-              />
-              <rect
-                x="-62"
-                y="-1"
-                width="124"
-                height="2"
-                rx="999"
-                fill="url(#hero-rim-ray)"
-                transform="rotate(30)"
-                filter="url(#hero-rim-blur)"
-              />
-              {!reduceMotion && (
-                <>
-                  <animateMotion dur="20s" repeatCount="indefinite" rotate="auto" calcMode="linear" keyPoints="1;0.5;0.5" keyTimes="0;0.1885;1">
-                    <mpath href="#hero-earth-rim-path" />
-                  </animateMotion>
-                  <animate
-                    attributeName="opacity"
-                    values="0;0.72;1;0.74;0;0"
-                    keyTimes="0;0.026;0.078;0.1365;0.1885;1"
-                    dur="20s"
-                    repeatCount="indefinite"
-                  />
-                </>
-              )}
-              {reduceMotion && <animateMotion dur="0.001s" fill="freeze" path="M 840 132 L 840 132" />}
             </g>
-          </g>
+          ) : (
+            <HeroRimHighlight />
+          )}
         </svg>
       </div>
 
-      <div className="absolute inset-x-0 top-0 z-[15] h-[58%] bg-gradient-to-b from-black via-black/85 to-transparent pointer-events-none" />
       <motion.div
-        className="absolute inset-0 z-20 flex items-center justify-center px-4 text-center pointer-events-none"
+        className="absolute inset-x-0 top-0 z-[15] h-[58%] bg-gradient-to-b from-black/92 via-black/54 to-transparent pointer-events-none"
+        variants={heroOverlayVariants}
+        {...loadMotion}
+      />
+      <motion.div
+        className="absolute inset-x-0 top-[17%] z-20 flex justify-center px-4 text-center pointer-events-none sm:top-[18%]"
         variants={heroTextContainer}
         {...loadMotion}
       >
         <div>
           <motion.h1
             variants={heroTitleVariants}
-            className="mx-auto mt-3 max-w-4xl font-display text-4xl leading-[1.1] text-white sm:text-6xl"
+            className="mx-auto max-w-4xl font-display text-3xl leading-[1.05] text-white sm:text-5xl lg:text-[3.75rem]"
           >
-            Welcome To OVERXBIT
-            <br />
+            <span className="block">
+              Welcome To OVERXBIT
+            </span>
             <motion.span
-              className="text-gradient"
-              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+              className="mt-2 block text-gradient sm:mt-3"
+              initial={reduceMotion ? false : { opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={
                 reduceMotion
                   ? { duration: 0 }
                   : {
-                      duration: 0.7,
-                      delay: 0.34,
-                      ease: motionEase,
+                      duration: 1.2,
+                      delay: 0.5,
+                      ease: heroMotionEase,
                     }
               }
             >
               Built For Consistent Growth.
             </motion.span>
           </motion.h1>
-          <motion.p variants={revealVariants} className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white">
+          <motion.p variants={heroCopyVariants} className="mx-auto mt-5 max-w-2xl text-base font-medium leading-8 text-white sm:text-lg">
            Smart strategies. Trusted results,
             <br className="hidden sm:block" />
             Wealth that works. This is smart growth redefined.
           </motion.p>
-          <motion.div variants={revealVariants} className="mt-9 flex flex-wrap items-center justify-center gap-3 pointer-events-auto">
+          <motion.div variants={heroCtaVariants} className="mt-7 flex flex-wrap items-center justify-center gap-3 pointer-events-auto">
             <motion.button
               className="rounded-full bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-7 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(42,187,175,0.5)] transition hover:brightness-110"
-              whileHover={reduceMotion ? undefined : { scale: 1.03 }}
+              whileHover={reduceMotion ? undefined : { scale: 1.008, y: -1 }}
               whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-              transition={hoverSpring}
+              transition={heroButtonTransition}
             >
               Learn More
             </motion.button>

@@ -13,9 +13,9 @@ const socialLinks = [
 ]
 
 const contactDetails = [
-  { label: 'UAE', value: '+971527030890', icon: 'phone' },
-  { label: 'LEB', value: '+9613471472', icon: 'phone' },
-  { label: 'ARM', value: '+3744999048', icon: 'phone' },
+  { label: 'UAE', value: '+971 527 030 890', icon: 'phone' },
+  { label: 'LEB', value: '+961 3 471 472', icon: 'phone' },
+  { label: 'ARM', value: '+374 49 990 48', icon: 'phone' },
   { label: 'Email', value: 'info@overxbit.com', icon: 'mail' },
 ]
 

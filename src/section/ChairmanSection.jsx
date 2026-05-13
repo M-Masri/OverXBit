@@ -42,8 +42,8 @@ function ChairmanSection() {
   const textContainer = createStaggerContainer(0.1, 0.1)
 
   return (
-    <motion.section id="chairman" className="pt-16" variants={revealVariants} {...inViewMotion}>
-      <div className="chairman-shell p-6 sm:p-8 lg:p-10">
+    <motion.section id="chairman" className="chairman-section relative isolate z-[18] pt-0" variants={revealVariants} {...inViewMotion}>
+      <div className="chairman-shell px-6 pb-6 pt-20 sm:px-8 sm:pb-8 sm:pt-20 lg:px-10 lg:pb-10 lg:pt-24">
         <motion.h2 variants={revealVariants} className="text-center font-display text-4xl text-white sm:text-5xl">
           A Message From The <span className="text-gradient">Chairman</span>
         </motion.h2>

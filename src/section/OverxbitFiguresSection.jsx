@@ -95,7 +95,7 @@ function OverxbitFiguresSection() {
 
         <div className="relative z-10">
           <motion.h2 variants={revealVariants} className="text-center font-display text-4xl text-white sm:text-5xl">
-            Overxbit In <span className="text-gradient">Figures</span>
+            Overxbit In Figures
           </motion.h2>
 
           <motion.div
