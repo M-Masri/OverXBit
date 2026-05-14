@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 import brandLogo from '../assets/OVERXBIT LOGO-04.png'
 import { servicesData } from '../lib/servicesData'
+import { selectUser } from '../services/authSlice'
 
 const navLinks = [
   { label: 'FAQ', to: '/faq', match: '/faq' },
@@ -9,6 +11,8 @@ const navLinks = [
 ]
 
 function Header() {
+  const user = useSelector(selectUser)
+  const hasUserData = Boolean(user)
   const [activeHash, setActiveHash] = useState('#home')
   const [isSticky, setIsSticky] = useState(false)
   const [isServicesOpen, setIsServicesOpen] = useState(false)
@@ -137,10 +141,10 @@ function Header() {
         <div className="flex items-center gap-3">
           <div>
             <Link
-              to="/login"
+              to={hasUserData ? '/portal/dashboard' : '/login'}
               className="header-cta bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-5 py-1.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(42,187,175,0.45)] transition hover:brightness-110"
             >
-              Login
+              {hasUserData ? 'Dashboard' : 'Login'}
             </Link>
           </div>
         </div>
