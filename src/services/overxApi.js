@@ -56,7 +56,7 @@ function unwrapResult(result) {
 export const overxApi = createApi({
   reducerPath: 'overxApi',
   baseQuery,
-  tagTypes: ['Auth', 'Dashboard', 'Periods', 'History', 'Methods', 'Profile'],
+  tagTypes: ['Auth', 'Dashboard', 'Periods', 'History', 'Methods', 'Profile', 'Chart'],
   endpoints: (builder) => ({
     login: builder.mutation({
       query: (credentials) => ({
@@ -72,6 +72,14 @@ export const overxApi = createApi({
         method: 'POST',
       }),
       invalidatesTags: ['Auth', 'Dashboard', 'Periods', 'History', 'Methods', 'Profile'],
+    }),
+    changePassword: builder.mutation({
+      query: (payload) => ({
+        url: '/change-password',
+        method: 'POST',
+        body: payload,
+      }),
+      invalidatesTags: ['Auth'],
     }),
     getMe: builder.query({
       query: () => '/me',
@@ -110,6 +118,46 @@ export const overxApi = createApi({
         }
       },
       providesTags: ['Periods'],
+    }),
+    getPortalPeriodsChart: builder.query({
+      query: () => '/client/earning-periods/chart',
+      transformResponse: (response) => ({
+        chart: response?.data || response?.chart || response || [],
+      }),
+      providesTags: ['Chart'],
+    }),
+    getPortalSinglePeriodChart: builder.query({
+      query: (earningPeriodId) => `/client/earning-periods/${earningPeriodId}/chart`,
+      transformResponse: (response) => ({
+        period: response?.data?.period || null,
+        chart: response?.data?.chart || {},
+        dailyEarnings: response?.data?.daily_earnings || [],
+        transactions: response?.data?.transactions || [],
+        storedEarning: response?.data?.stored_earning || null,
+      }),
+      providesTags: (_result, _error, earningPeriodId) => [{ type: 'Chart', id: `period-${earningPeriodId}` }],
+    }),
+    requestPeriodCashout: builder.mutation({
+      query: ({ earning_period_id, token }) => ({
+        url: `/client/earning-periods/${earning_period_id}/request-cashout`,
+        method: 'POST',
+        body: {
+          earning_period_id,
+          token,
+        },
+      }),
+      invalidatesTags: ['Periods', 'Dashboard', 'History'],
+    }),
+    requestPeriodStore: builder.mutation({
+      query: ({ earning_period_id, token }) => ({
+        url: `/client/earning-periods/${earning_period_id}/request-store`,
+        method: 'POST',
+        body: {
+          earning_period_id,
+          token,
+        },
+      }),
+      invalidatesTags: ['Periods', 'Dashboard', 'History'],
     }),
     getPortalHistory: builder.query({
       async queryFn(_arg, _api, _extraOptions, fetchWithBQ) {
@@ -154,6 +202,14 @@ export const overxApi = createApi({
       }),
       providesTags: ['Methods'],
     }),
+    createPortalCashoutDetails: builder.mutation({
+      query: (payload) => ({
+        url: '/client/cashout-details',
+        method: 'POST',
+        body: payload,
+      }),
+      invalidatesTags: ['Methods'],
+    }),
     getPortalProfile: builder.query({
       async queryFn(_arg, _api, _extraOptions, fetchWithBQ) {
         const [profileResult, contractsResult] = await Promise.all([
@@ -185,12 +241,18 @@ export const overxApi = createApi({
 })
 
 export const {
+  useCreatePortalCashoutDetailsMutation,
+  useChangePasswordMutation,
   useGetMeQuery,
   useGetPortalDashboardQuery,
   useGetPortalHistoryQuery,
   useGetPortalMethodsQuery,
+  useGetPortalSinglePeriodChartQuery,
   useGetPortalPeriodsQuery,
+  useGetPortalPeriodsChartQuery,
   useGetPortalProfileQuery,
   useLoginMutation,
   useLogoutMutation,
+  useRequestPeriodCashoutMutation,
+  useRequestPeriodStoreMutation,
 } = overxApi
