@@ -774,7 +774,8 @@
     min-width: 0;
     padding: 0.75rem;
     border-radius: 0;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .portal-main {
@@ -1272,7 +1273,7 @@
 
   .portal-theme .portal-sidebar {
     padding: 0.9rem 0.72rem;
-    border-color: rgba(255, 255, 255, 0.2);
+    border-right-color: rgba(255, 255, 255, 0.2);
   }
 
   .portal-theme .portal-main {
@@ -1391,6 +1392,9 @@
     border-radius: 0.72rem;
     padding: 0.72rem 0.95rem;
     font-size: 0.78rem;
+    border-color: rgba(59, 130, 246, 0.38);
+    background: rgba(8, 20, 42, 0.88);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 
   .portal-theme .portal-avatar-ring {
@@ -1465,7 +1469,21 @@
 
   .portal-theme .portal-secondary-button:hover {
     border-color: rgba(59, 130, 246, 0.62);
-    background: rgba(59, 130, 246, 0.16);
+    background: rgba(16, 35, 68, 0.96);
+  }
+
+  .portal-theme .portal-secondary-button:active:not(:disabled) {
+    background: rgba(6, 14, 30, 0.96);
+    transform: translateY(1px);
+  }
+
+  .portal-theme button:not(:disabled) {
+    cursor: pointer;
+    transition: background-color 160ms ease, border-color 160ms ease, transform 120ms ease, filter 120ms ease;
+  }
+
+  .portal-theme button:not(:disabled):active {
+    filter: brightness(0.9);
   }
 
   .portal-theme .portal-loader {

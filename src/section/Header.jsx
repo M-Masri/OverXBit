@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import { useDispatch } from 'react-redux'
+import { FaChevronDown, FaUserLarge } from 'react-icons/fa6'
 import brandLogo from '../assets/OVERXBIT LOGO-04.png'
 import { servicesData } from '../lib/servicesData'
-import { selectUser } from '../services/authSlice'
+import { clearSession, selectUser } from '../services/authSlice'
+import { clearStoredToken } from '../services/sessionStorage'
+import { overxApi } from '../services/overxApi'
 
 const navLinks = [
   { label: 'FAQ', to: '/faq', match: '/faq' },
@@ -11,16 +15,23 @@ const navLinks = [
 ]
 
 function Header() {
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
+  const location = useLocation()
   const user = useSelector(selectUser)
   const hasUserData = Boolean(user)
+  const isPortalRoute = location.pathname.startsWith('/portal')
   const [activeHash, setActiveHash] = useState('#home')
   const [isSticky, setIsSticky] = useState(false)
   const [isServicesOpen, setIsServicesOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const servicesMenuRef = useRef(null)
-  const location = useLocation()
+  const profileMenuRef = useRef(null)
   // Animation removed
 
   useEffect(() => {
+    setIsProfileMenuOpen(false)
+
     if (location.pathname === '/') {
       setActiveHash(location.hash || '#home')
       return
@@ -52,11 +63,16 @@ function Header() {
       if (servicesMenuRef.current && !servicesMenuRef.current.contains(event.target)) {
         setIsServicesOpen(false)
       }
+
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileMenuOpen(false)
+      }
     }
 
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         setIsServicesOpen(false)
+        setIsProfileMenuOpen(false)
       }
     }
 
@@ -68,6 +84,14 @@ function Header() {
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [])
+
+  function handlePortalLogout() {
+    clearStoredToken()
+    dispatch(clearSession())
+    dispatch(overxApi.util.resetApiState())
+    setIsProfileMenuOpen(false)
+    navigate('/login', { replace: true })
+  }
 
   return (
     <header
@@ -138,15 +162,65 @@ function Header() {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-3">
-          <div>
-            <Link
-              to={hasUserData ? '/portal/dashboard' : '/login'}
-              className="header-cta bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-5 py-1.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(42,187,175,0.45)] transition hover:brightness-110"
-            >
-              {hasUserData ? 'Dashboard' : 'Login'}
-            </Link>
-          </div>
+        <div className={`flex gap-3 ${isPortalRoute ? 'items-start' : 'items-center'} ${isPortalRoute && isProfileMenuOpen ? 'self-start pt-1' : ''}`}>
+          {isPortalRoute ? (
+            <div className={`relative ${isProfileMenuOpen ? 'w-52 overflow-hidden rounded-2xl border border-[#3b82f6]/30 bg-[rgba(5,14,32,0.97)]' : ''}`} ref={profileMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                className={`group flex w-52 items-center gap-3 px-3 py-2 transition ${isProfileMenuOpen ? 'border-0 border-b border-[#3b82f6]/30 bg-transparent' : 'rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.03)] hover:border-[#3b82f6]/45 hover:bg-[rgba(59,130,246,0.1)]'}`}
+                aria-haspopup="menu"
+                aria-expanded={isProfileMenuOpen}
+              >
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-[rgba(59,130,246,0.2)] text-white">
+                  <FaUserLarge className="text-sm" />
+                </span>
+
+                <span className="min-w-0 text-left">
+                  <span className="block text-[10px] uppercase tracking-[0.2em] text-slate-400">MY PROFILE</span>
+                  <span className="mt-1 block max-w-[9rem] truncate text-sm font-medium text-white" title={user?.email || user?.name || 'Client User'}>
+                    {user?.email || user?.name || 'Client User'}
+                  </span>
+                </span>
+
+                <FaChevronDown className="text-[10px] text-slate-400" />
+              </button>
+
+              {isProfileMenuOpen ? (
+                <div
+                  role="menu"
+                  className="w-52 space-y-1 bg-transparent p-2"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false)
+                      navigate('/portal/profile')
+                    }}
+                    className="w-full rounded-xl border border-transparent px-3 py-2 text-left text-sm font-semibold text-white transition hover:border-[#3b82f6]/45 hover:bg-[rgba(59,130,246,0.18)]"
+                  >
+                    Edit My Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePortalLogout}
+                    className="w-full rounded-xl border border-transparent px-3 py-2 text-left text-sm font-semibold text-[#fecaca] transition hover:border-red-300/35 hover:bg-red-500/15 hover:text-white"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div>
+              <Link
+                to={hasUserData ? '/portal/dashboard' : '/login'}
+                className="header-cta bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-5 py-1.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(42,187,175,0.45)] transition hover:brightness-110"
+              >
+                {hasUserData ? 'Dashboard' : 'Login'}
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </header>

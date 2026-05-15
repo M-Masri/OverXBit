@@ -237,6 +237,14 @@ export const overxApi = createApi({
       },
       providesTags: ['Profile'],
     }),
+    updatePortalProfile: builder.mutation({
+      query: (payload) => ({
+        url: '/client/profile',
+        method: 'POST',
+        body: payload,
+      }),
+      invalidatesTags: ['Profile', 'Dashboard'],
+    }),
   }),
 })
 
@@ -255,4 +263,5 @@ export const {
   useLogoutMutation,
   useRequestPeriodCashoutMutation,
   useRequestPeriodStoreMutation,
+  useUpdatePortalProfileMutation,
 } = overxApi

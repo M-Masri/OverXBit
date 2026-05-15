@@ -34,13 +34,15 @@ import {
   useLogoutMutation,
   useRequestPeriodCashoutMutation,
   useRequestPeriodStoreMutation,
+  useUpdatePortalProfileMutation,
 } from '../services/overxApi'
 import { clearStoredToken } from '../services/sessionStorage'
+import Header from '../section/Header'
 
 const portalSections = [
   {
     slug: 'dashboard',
-    label: 'Command Center',
+    label: 'Dashboard',
     title: 'Portfolio pulse and contract activity',
     description: 'A single-screen overview of machines, balances, and client momentum.',
     icon: FaChartLine,
@@ -154,6 +156,15 @@ function getStatusTone(status) {
   return 'neutral'
 }
 
+function getPendingPeriods(payload) {
+  const periods = Array.isArray(payload?.periods) ? payload.periods : []
+  return periods.filter((period) => {
+    const status = String(period?.status || '').toLowerCase()
+
+    return status === 'complete' || status === 'completed'
+  })
+}
+
 function createActivityMatrix(payload) {
   const sourceItems =
     payload.periods || payload.transactions || payload.contracts || payload.methods || payload.storedEarnings || []
@@ -186,12 +197,13 @@ function getOverviewCards(section, payload, user) {
 
   if (section.slug === 'periods') {
     const periods = payload.periods || []
+    const pendingPeriods = getPendingPeriods(payload)
     const totalBtcEarned = periods.reduce((sum, period) => sum + Number(period?.total_btc_earned || 0), 0)
     const totalRevenue = periods.reduce((sum, period) => sum + Number(period?.total_revenue || 0), 0)
 
     return [
       { label: 'Listed Periods', value: String(payload.periodsMeta?.total || periods.length || 0), hint: 'Visible in the ledger', accent: true },
-      { label: 'Ready To Act', value: String(payload.pendingPeriods?.length || 0), hint: 'Client decision window' },
+      { label: 'Ready To Act', value: String(pendingPeriods.length), hint: 'Client decision window' },
       { label: 'Total BTC Earned', value: formatBtc(totalBtcEarned), hint: 'Across fetched periods' },
       { label: 'Total Revenue', value: formatMoney(totalRevenue), hint: 'Across fetched periods' },
     ]
@@ -1135,7 +1147,7 @@ function DashboardView({ payload }) {
 
 function PeriodsView({ payload, onRequestCashout, onRequestStore, actionState }) {
   const periods = payload.periods || []
-  const pendingPeriods = payload.pendingPeriods || []
+  const pendingPeriods = getPendingPeriods(payload)
 
   return (
     <div className="space-y-6">
@@ -1165,7 +1177,7 @@ function PeriodsView({ payload, onRequestCashout, onRequestStore, actionState })
                   <p className="mt-1 font-semibold text-white">{formatMoney(period.total_revenue)}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  {String(period?.status || '').toLowerCase() === 'pending' ? (
+                  {['complete', 'completed'].includes(String(period?.status || '').toLowerCase()) ? (
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -1212,31 +1224,42 @@ function HistoryView({ payload }) {
         <StatCard label="Stored BTC" value={formatBtc(payload.storedMeta?.total_stored_btc)} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <div className="portal-panel rounded-[1.9rem] p-6 sm:p-8">
+      <div className="space-y-6">
+        <div className="p-0">
           <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Transactions</p>
-          <div className="mt-5 space-y-4">
+          <div className="mt-5">
             {transactions.length ? (
-              transactions.map((transaction) => (
-                <div key={transaction.id} className="portal-table-row portal-table-row-compact">
-                  <div>
-                    <p className="font-semibold text-white">{transaction.type || 'transaction'}</p>
-                    <p className="mt-1 text-sm text-slate-400">Requested {formatDateTime(transaction.requested_at)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-400">BTC</p>
-                    <p className="mt-1 font-semibold text-white">{formatBtc(transaction.btc_amount)}</p>
-                  </div>
-                  <span className="portal-badge">{transaction.status || 'unknown'}</span>
-                </div>
-              ))
+              <div className="portal-table-shell">
+                <table className="portal-data-table">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Requested At</th>
+                      <th>BTC</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((transaction) => (
+                      <tr key={transaction.id}>
+                        <td>{transaction.type || 'transaction'}</td>
+                        <td>{formatDateTime(transaction.requested_at)}</td>
+                        <td>{formatBtc(transaction.btc_amount)}</td>
+                        <td>
+                          <span className="portal-badge">{transaction.status || 'unknown'}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <EmptyState title="No transaction history yet." detail="Requests will surface here once the client starts moving balances." />
             )}
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-2">
           <div className="portal-panel rounded-[1.9rem] p-6 sm:p-8">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Cashouts</p>
             <div className="mt-5 space-y-4">
@@ -1328,7 +1351,7 @@ function MethodsView({ payload }) {
   )
 }
 
-function ProfileView({ payload }) {
+function ProfileView({ payload, onOpenEditProfile }) {
   const profile = payload.profile
   const contracts = payload.contracts || []
 
@@ -1342,7 +1365,16 @@ function ProfileView({ payload }) {
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="portal-panel rounded-[1.9rem] p-6 sm:p-8">
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Client Identity</p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Client Identity</p>
+            <button
+              type="button"
+              onClick={() => onOpenEditProfile?.(profile)}
+              className="portal-secondary-button"
+            >
+              Edit Profile
+            </button>
+          </div>
           <div className="mt-6 space-y-4">
             <div className="portal-list-row"><span>Name</span><strong>{profile?.name || 'Not available'}</strong></div>
             <div className="portal-list-row"><span>Email</span><strong>{profile?.email || 'Not available'}</strong></div>
@@ -1382,7 +1414,7 @@ function ProfileView({ payload }) {
   )
 }
 
-function ContentRenderer({ section, payload, onRequestCashout, onRequestStore, actionState }) {
+function ContentRenderer({ section, payload, onRequestCashout, onRequestStore, actionState, onOpenEditProfile }) {
   if (section.slug === 'dashboard') {
     return <DashboardView payload={payload} />
   }
@@ -1406,7 +1438,7 @@ function ContentRenderer({ section, payload, onRequestCashout, onRequestStore, a
     return <MethodsView payload={payload} />
   }
 
-  return <ProfileView payload={payload} />
+  return <ProfileView payload={payload} onOpenEditProfile={onOpenEditProfile} />
 }
 
 function getQueryErrorMessage(error) {
@@ -1432,6 +1464,13 @@ const initialCashoutDetailsForm = {
   currency_id: '',
 }
 
+const initialEditProfileForm = {
+  name: '',
+  email: '',
+  phone: '',
+  passport: '',
+}
+
 function ClientPortalPage() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -1444,6 +1483,7 @@ function ClientPortalPage() {
   const [createPortalCashoutDetails] = useCreatePortalCashoutDetailsMutation()
   const [requestPeriodCashout] = useRequestPeriodCashoutMutation()
   const [requestPeriodStore] = useRequestPeriodStoreMutation()
+  const [updatePortalProfile] = useUpdatePortalProfileMutation()
   const [periodActionState, setPeriodActionState] = useState({ loading: false, type: '', periodId: null })
   const [periodStatusOverrides, setPeriodStatusOverrides] = useState({})
   const [periodActionError, setPeriodActionError] = useState('')
@@ -1458,6 +1498,11 @@ function ClientPortalPage() {
   const [cashoutDetailsError, setCashoutDetailsError] = useState('')
   const [cashoutDetailsSuccess, setCashoutDetailsSuccess] = useState('')
   const [cashoutDetailsForm, setCashoutDetailsForm] = useState(initialCashoutDetailsForm)
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false)
+  const [editProfileSubmitting, setEditProfileSubmitting] = useState(false)
+  const [editProfileError, setEditProfileError] = useState('')
+  const [editProfileSuccess, setEditProfileSuccess] = useState('')
+  const [editProfileForm, setEditProfileForm] = useState(initialEditProfileForm)
   const [passwordVisibility, setPasswordVisibility] = useState({
     current_password: false,
     password: false,
@@ -1559,20 +1604,6 @@ function ClientPortalPage() {
   const overviewCards = getOverviewCards(activeSection, payload, user)
   const insightRows = getInsightRows(activeSection, payloadWithPeriodOverrides, user)
 
-  async function handleLogout() {
-    clearStoredToken()
-    dispatch(clearSession())
-    dispatch(overxApi.util.resetApiState())
-
-    try {
-      await logoutRequest().unwrap()
-    } catch {
-      // Ignore logout failures after local session is cleared.
-    }
-
-    navigate('/login', { replace: true })
-  }
-
   async function handleRequestCashout(periodId) {
     if (!periodId || !token || periodActionState.loading) {
       return
@@ -1660,6 +1691,71 @@ function ClientPortalPage() {
     setCashoutDetailsSuccess('')
     setCashoutDetailsForm(initialCashoutDetailsForm)
     setIsCashoutDetailsModalOpen(true)
+  }
+
+  function handleOpenEditProfileModal(profile) {
+    setEditProfileError('')
+    setEditProfileSuccess('')
+    setEditProfileForm({
+      name: profile?.name || '',
+      email: profile?.email || '',
+      phone: profile?.phone || '',
+      passport: profile?.passport || '',
+    })
+    setIsEditProfileModalOpen(true)
+  }
+
+  function handleCloseEditProfileModal() {
+    if (editProfileSubmitting) {
+      return
+    }
+
+    setIsEditProfileModalOpen(false)
+    setEditProfileError('')
+    setEditProfileSuccess('')
+    setEditProfileForm(initialEditProfileForm)
+  }
+
+  function handleEditProfileInputChange(event) {
+    const { name, value } = event.target
+    setEditProfileForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  async function handleSubmitEditProfile(event) {
+    event.preventDefault()
+
+    if (editProfileSubmitting) {
+      return
+    }
+
+    setEditProfileError('')
+    setEditProfileSuccess('')
+
+    if (!editProfileForm.name.trim() || !editProfileForm.email.trim()) {
+      setEditProfileError('Name and email are required.')
+      return
+    }
+
+    setEditProfileSubmitting(true)
+
+    try {
+      await updatePortalProfile({
+        name: editProfileForm.name.trim(),
+        email: editProfileForm.email.trim(),
+        phone: editProfileForm.phone.trim(),
+        passport: editProfileForm.passport.trim(),
+      }).unwrap()
+
+      setEditProfileSuccess('Profile updated successfully.')
+      profileQuery.refetch()
+    } catch (requestError) {
+      setEditProfileError(getQueryErrorMessage(requestError))
+    } finally {
+      setEditProfileSubmitting(false)
+    }
   }
 
   function handleCloseCashoutDetailsModal() {
@@ -1789,9 +1885,10 @@ function ClientPortalPage() {
 
   return (
     <div className="portal-theme min-h-screen overflow-x-hidden bg-grid text-slate-100">
+      <Header />
       <div className="portal-backdrop-glow" />
 
-      <main className="relative z-10 w-full p-0">
+      <main className="relative z-10 w-full p-0 pt-20">
         <section className="portal-shell">
           <aside className="portal-sidebar">
             {/* <div className="portal-sidebar-brand">
@@ -1831,10 +1928,6 @@ function ClientPortalPage() {
                 )
               })}
             </nav>
-
-            <div className="portal-sidebar-promo">
-              <button type="button" onClick={handleLogout} className="portal-secondary-button mt-5 w-full justify-center">Sign out</button>
-            </div>
           </aside>
 
           <section className="portal-main p-3 sm:p-4">
@@ -1933,6 +2026,7 @@ function ClientPortalPage() {
                         onRequestCashout={handleRequestCashout}
                         onRequestStore={handleRequestStore}
                         actionState={periodActionState}
+                        onOpenEditProfile={handleOpenEditProfileModal}
                       />
                     </div>
                   ) : null}
@@ -1944,11 +2038,11 @@ function ClientPortalPage() {
       </main>
 
       {isCashoutDetailsModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/80 p-4">
-          <div className="w-full max-w-2xl rounded-[1.2rem] border border-white/15 bg-[#07181d] p-6 shadow-[0_20px_80px_-50px_rgba(42,187,175,0.72)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/88 p-4">
+          <div className="w-full max-w-2xl rounded-[1.2rem] border border-[#3b82f6]/35 bg-[#0a1326] p-6 shadow-[0_24px_90px_-46px_rgba(59,130,246,0.68)]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-[#2ABBAF]">Payment Details</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-[#60a5fa]">Payment Details</p>
                 <h3 className="mt-2 text-xl font-semibold text-white">Add cashout method</h3>
               </div>
               <button type="button" onClick={handleCloseCashoutDetailsModal} className="portal-secondary-button" disabled={cashoutDetailsSubmitting}>
@@ -1956,7 +2050,7 @@ function ClientPortalPage() {
               </button>
             </div>
 
-            <div className="mt-5 inline-flex rounded-xl border border-white/12 bg-[rgba(255,255,255,0.04)] p-1">
+            <div className="mt-5 inline-flex rounded-xl border border-[#3b82f6]/30 bg-[rgba(59,130,246,0.08)] p-1">
               <button
                 type="button"
                 onClick={() => setCashoutDetailsType('bank')}
@@ -1988,7 +2082,7 @@ function ClientPortalPage() {
                     name="label"
                     value={cashoutDetailsForm.label}
                     onChange={handleCashoutDetailsInputChange}
-                    className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                    className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                     placeholder="My main payout method"
                   />
                 </div>
@@ -2002,7 +2096,7 @@ function ClientPortalPage() {
                         name="account_holder"
                         value={cashoutDetailsForm.account_holder}
                         onChange={handleCashoutDetailsInputChange}
-                        className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                        className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                       />
                     </div>
                     <div>
@@ -2012,7 +2106,7 @@ function ClientPortalPage() {
                         name="bank_name"
                         value={cashoutDetailsForm.bank_name}
                         onChange={handleCashoutDetailsInputChange}
-                        className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                        className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                       />
                     </div>
                     <div>
@@ -2022,7 +2116,7 @@ function ClientPortalPage() {
                         name="swift_code"
                         value={cashoutDetailsForm.swift_code}
                         onChange={handleCashoutDetailsInputChange}
-                        className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                        className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                       />
                     </div>
                     <div>
@@ -2032,7 +2126,7 @@ function ClientPortalPage() {
                         name="routing_number"
                         value={cashoutDetailsForm.routing_number}
                         onChange={handleCashoutDetailsInputChange}
-                        className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                        className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                       />
                     </div>
                     <div className="sm:col-span-2">
@@ -2042,7 +2136,7 @@ function ClientPortalPage() {
                         name="iban"
                         value={cashoutDetailsForm.iban}
                         onChange={handleCashoutDetailsInputChange}
-                        className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                        className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                       />
                     </div>
                   </>
@@ -2055,7 +2149,7 @@ function ClientPortalPage() {
                         name="crypto_wallet_address"
                         value={cashoutDetailsForm.crypto_wallet_address}
                         onChange={handleCashoutDetailsInputChange}
-                        className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                        className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                       />
                     </div>
                     <div>
@@ -2065,7 +2159,7 @@ function ClientPortalPage() {
                         name="crypto_network"
                         value={cashoutDetailsForm.crypto_network}
                         onChange={handleCashoutDetailsInputChange}
-                        className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                        className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                         placeholder="TRC20"
                       />
                     </div>
@@ -2078,7 +2172,7 @@ function ClientPortalPage() {
                         min="1"
                         value={cashoutDetailsForm.currency_id}
                         onChange={handleCashoutDetailsInputChange}
-                        className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                        className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                       />
                     </div>
                   </>
@@ -2091,7 +2185,7 @@ function ClientPortalPage() {
                   name="is_default"
                   checked={cashoutDetailsForm.is_default}
                   onChange={handleCashoutDetailsInputChange}
-                  className="h-4 w-4 rounded border-white/20 bg-[#0b1a1f]"
+                  className="h-4 w-4 rounded border-white/30 bg-[#081224]"
                 />
                 Set as default
               </label>
@@ -2113,11 +2207,11 @@ function ClientPortalPage() {
       ) : null}
 
       {isPasswordModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/80 p-4">
-          <div className="w-full max-w-md rounded-[1.2rem] border border-white/15 bg-[#07181d] p-6 shadow-[0_20px_80px_-50px_rgba(42,187,175,0.72)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/88 p-4">
+          <div className="w-full max-w-md rounded-[1.2rem] border border-[#3b82f6]/35 bg-[#0a1326] p-6 shadow-[0_24px_90px_-46px_rgba(59,130,246,0.68)]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-[#2ABBAF]">Security</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-[#60a5fa]">Security</p>
                 <h3 className="mt-2 text-xl font-semibold text-white">Change Password</h3>
               </div>
               <button type="button" onClick={handleCloseChangePasswordModal} className="portal-secondary-button" disabled={passwordSubmitting}>
@@ -2135,13 +2229,13 @@ function ClientPortalPage() {
                     type={passwordVisibility.current_password ? 'text' : 'password'}
                     value={passwordForm.current_password}
                     onChange={handlePasswordInputChange}
-                    className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 pr-10 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                    className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 pr-10 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                     autoComplete="current-password"
                   />
                   <button
                     type="button"
                     onClick={() => togglePasswordVisibility('current_password')}
-                    className="absolute inset-y-0 right-0 inline-flex items-center pr-3 text-slate-400 transition hover:text-[#7ad7cf]"
+                    className="absolute inset-y-0 right-0 inline-flex items-center pr-3 text-slate-400 transition hover:text-[#93c5fd]"
                     aria-label={passwordVisibility.current_password ? 'Hide current password' : 'Show current password'}
                   >
                     {passwordVisibility.current_password ? <FaEyeSlash /> : <FaEye />}
@@ -2158,13 +2252,13 @@ function ClientPortalPage() {
                     type={passwordVisibility.password ? 'text' : 'password'}
                     value={passwordForm.password}
                     onChange={handlePasswordInputChange}
-                    className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 pr-10 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                    className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 pr-10 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                     autoComplete="new-password"
                   />
                   <button
                     type="button"
                     onClick={() => togglePasswordVisibility('password')}
-                    className="absolute inset-y-0 right-0 inline-flex items-center pr-3 text-slate-400 transition hover:text-[#7ad7cf]"
+                    className="absolute inset-y-0 right-0 inline-flex items-center pr-3 text-slate-400 transition hover:text-[#93c5fd]"
                     aria-label={passwordVisibility.password ? 'Hide new password' : 'Show new password'}
                   >
                     {passwordVisibility.password ? <FaEyeSlash /> : <FaEye />}
@@ -2181,13 +2275,13 @@ function ClientPortalPage() {
                     type={passwordVisibility.password_confirmation ? 'text' : 'password'}
                     value={passwordForm.password_confirmation}
                     onChange={handlePasswordInputChange}
-                    className="w-full rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 pr-10 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
+                    className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 pr-10 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                     autoComplete="new-password"
                   />
                   <button
                     type="button"
                     onClick={() => togglePasswordVisibility('password_confirmation')}
-                    className="absolute inset-y-0 right-0 inline-flex items-center pr-3 text-slate-400 transition hover:text-[#7ad7cf]"
+                    className="absolute inset-y-0 right-0 inline-flex items-center pr-3 text-slate-400 transition hover:text-[#93c5fd]"
                     aria-label={passwordVisibility.password_confirmation ? 'Hide password confirmation' : 'Show password confirmation'}
                   >
                     {passwordVisibility.password_confirmation ? <FaEyeSlash /> : <FaEye />}
@@ -2205,6 +2299,86 @@ function ClientPortalPage() {
 
               <button type="submit" className="portal-secondary-button w-full justify-center" disabled={passwordSubmitting}>
                 {passwordSubmitting ? 'Sending...' : 'Update Password'}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isEditProfileModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/88 p-4">
+          <div className="w-full max-w-lg rounded-[1.2rem] border border-[#3b82f6]/35 bg-[#0a1326] p-6 shadow-[0_24px_90px_-46px_rgba(59,130,246,0.68)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-[#60a5fa]">Client Profile</p>
+                <h3 className="mt-2 text-xl font-semibold text-white">Edit Profile</h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseEditProfileModal}
+                className="portal-secondary-button"
+                disabled={editProfileSubmitting}
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitEditProfile} className="mt-6 space-y-4">
+              <div>
+                <label htmlFor="edit_profile_name" className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">Name</label>
+                <input
+                  id="edit_profile_name"
+                  name="name"
+                  value={editProfileForm.name}
+                  onChange={handleEditProfileInputChange}
+                  className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit_profile_email" className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">Email</label>
+                <input
+                  id="edit_profile_email"
+                  name="email"
+                  type="email"
+                  value={editProfileForm.email}
+                  onChange={handleEditProfileInputChange}
+                  className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit_profile_phone" className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">Phone</label>
+                <input
+                  id="edit_profile_phone"
+                  name="phone"
+                  value={editProfileForm.phone}
+                  onChange={handleEditProfileInputChange}
+                  className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit_profile_passport" className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">Passport</label>
+                <input
+                  id="edit_profile_passport"
+                  name="passport"
+                  value={editProfileForm.passport}
+                  onChange={handleEditProfileInputChange}
+                  className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
+                />
+              </div>
+
+              {editProfileError ? (
+                <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{editProfileError}</p>
+              ) : null}
+
+              {editProfileSuccess ? (
+                <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">{editProfileSuccess}</p>
+              ) : null}
+
+              <button type="submit" className="portal-secondary-button w-full justify-center" disabled={editProfileSubmitting}>
+                {editProfileSubmitting ? 'Saving...' : 'Save Profile'}
               </button>
             </form>
           </div>
