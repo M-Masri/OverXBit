@@ -708,8 +708,8 @@ function DashboardChartSection({ chartQuery, onRetry, className = 'mt-6' }) {
             <h3 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">Earning periods performance</h3>
             <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">Grouped monthly comparison from /client/earning-periods/chart.</p>
             <div className="mt-4 flex flex-wrap items-center gap-4 text-xs">
-              <span className="inline-flex items-center gap-2 text-slate-300"><span className="h-2.5 w-2.5 rounded-sm bg-[#f59e0b]" />Cashed Out ($)</span>
-              <span className="inline-flex items-center gap-2 text-slate-300"><span className="h-2.5 w-2.5 rounded-sm bg-[#2ABBAF]" />Stored ($)</span>
+              <span className="inline-flex items-center gap-2 text-slate-300"><span className="h-2.5 w-2.5 rounded-sm bg-[#1D4ED8]" />Cashed Out ($)</span>
+              <span className="inline-flex items-center gap-2 text-slate-300"><span className="h-2.5 w-2.5 rounded-sm bg-[#1D4ED8]" />Stored ($)</span>
             </div>
           </div>
           <div className="portal-chip">
@@ -769,7 +769,7 @@ function DashboardChartSection({ chartQuery, onRetry, className = 'mt-6' }) {
                       width={barWidth}
                       height={bar.cashHeight}
                       rx="4"
-                      fill="#f59e0b"
+                      fill="#1D4ED8"
                       opacity={
                         hoveredPoint
                           ? hoveredPoint.index === index && hoveredPoint.series === 'cashout'
@@ -786,7 +786,7 @@ function DashboardChartSection({ chartQuery, onRetry, className = 'mt-6' }) {
                       width={barWidth}
                       height={bar.storeHeight}
                       rx="4"
-                      fill="#2ABBAF"
+                      fill="#1D4ED8"
                       opacity={
                         hoveredPoint
                           ? hoveredPoint.index === index && hoveredPoint.series === 'stored'

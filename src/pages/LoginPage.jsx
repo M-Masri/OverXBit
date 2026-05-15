@@ -19,6 +19,7 @@ function LoginPage() {
   const [login, { isLoading: authBusy }] = useLoginMutation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
 
   if (sessionReady && isAuthenticated) {
@@ -93,24 +94,75 @@ function LoginPage() {
 
               <div>
                 <label className="text-sm font-medium text-slate-200">Password</label>
-                <input className="login-input mt-2" type="password" placeholder="Enter your password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
+                <div className="relative mt-2">
+                  <input
+                    className="login-input pr-11"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((current) => !current)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 transition hover:text-white"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-pressed={showPassword}
+                  >
+                    {showPassword ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        className="h-5 w-5"
+                      >
+                        <path d="M3 3l18 18" strokeLinecap="round" strokeLinejoin="round" />
+                        <path
+                          d="M10.48 10.47a2.2 2.2 0 003.06 3.06"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M9.88 5.09A11.8 11.8 0 0112 4.9c5.24 0 9.03 3.29 10.5 7.1a11.7 11.7 0 01-3.13 4.36"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M6.22 6.23A12.22 12.22 0 001.5 12c1.47 3.81 5.26 7.1 10.5 7.1 1.83 0 3.51-.4 5.02-1.08"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        className="h-5 w-5"
+                      >
+                        <path
+                          d="M1.5 12C2.97 8.19 6.76 4.9 12 4.9S21.03 8.19 22.5 12c-1.47 3.81-5.26 7.1-10.5 7.1S2.97 15.81 1.5 12z"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <circle cx="12" cy="12" r="3.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between gap-4">
-              <label className="flex items-center gap-2 text-sm text-slate-300">
-                <input type="checkbox" className="h-4 w-4 rounded border-white/20 bg-slate-900" />
-                Remember me
-              </label>
-              <a href="#" className="text-sm text-[#2ABBAF] hover:text-[#2ABBAF]">
-                Forgot password?
-              </a>
             </div>
 
             <button
               type="submit"
               disabled={authBusy}
-              className="mt-6 w-full rounded-xl bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-6 py-3 text-sm font-semibold uppercase tracking-[0.06em] text-white shadow-[0_12px_30px_rgba(42,187,175,0.35)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-9 w-full rounded-xl bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-6 py-3 text-sm font-semibold uppercase tracking-[0.06em] text-white shadow-[0_12px_30px_rgba(42,187,175,0.35)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {authBusy ? 'Signing in...' : 'Login'}
             </button>
