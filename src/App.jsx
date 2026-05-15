@@ -96,11 +96,7 @@ function ProtectedRoute({ children }) {
   if (!sessionReady) {
     return (
       <div className="bg-grid flex min-h-screen items-center justify-center px-6 text-slate-100">
-        <div className="portal-panel max-w-md rounded-[1.8rem] p-8 text-center">
-          <p className="text-xs uppercase tracking-[0.28em] text-[#2ABBAF]">Authenticating</p>
-          <h1 className="mt-4 text-3xl font-semibold text-white">Restoring your client session</h1>
-          <p className="mt-4 text-sm leading-7 text-slate-300">The portal is verifying your saved Sanctum token before loading private data.</p>
-        </div>
+        <div className="portal-loader" style={{ borderTopColor: '#3B82F6' }} />
       </div>
     )
   }

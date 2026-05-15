@@ -1148,7 +1148,7 @@
   .portal-table-shell {
     border: 1px solid rgba(42, 187, 175, 0.16);
     border-radius: 1rem;
-    background: linear-gradient(180deg, rgba(11, 24, 30, 0.9), rgba(9, 18, 24, 0.94));
+    background: rgba(255, 255, 255, 0.04);
     overflow: auto;
   }
 
@@ -1172,7 +1172,7 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: #8fbdb8;
-    background: rgba(7, 17, 22, 0.96);
+    background: rgba(255, 255, 255, 0.04);
     position: sticky;
     top: 0;
     z-index: 1;
@@ -1184,15 +1184,15 @@
   }
 
   .portal-data-table tbody tr {
-    background: rgba(0, 0, 0, 0.92);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .portal-data-table tbody tr:nth-child(even) {
-    background: rgba(0, 0, 0, 0.92);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .portal-data-table tbody tr:hover {
-    background: rgba(8, 8, 8, 0.96);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .portal-data-table tbody tr:last-child td {
@@ -1266,7 +1266,7 @@
     border-radius: 28px;
     overflow: hidden;
     border-color: transparent;
-    background: #000;
+    background: transparent;
     box-shadow: 0 34px 100px rgba(1, 4, 13, 0.68);
   }
 
@@ -1300,7 +1300,7 @@
     border-radius: 0.9rem !important;
     gap: 0.72rem;
     border-color: rgba(255, 255, 255, 0.12);
-    background: rgba(0, 0, 0, 0.86);
+    background: rgba(255, 255, 255, 0.04);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
   }
 
@@ -1317,13 +1317,13 @@
 
   .portal-theme .portal-nav-item:hover {
     border-color: rgba(59, 130, 246, 0.45);
-    background: linear-gradient(180deg, rgba(9, 13, 24, 0.95), rgba(6, 10, 18, 0.95));
+    background: rgba(255, 255, 255, 0.04);
     box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.16);
   }
 
   .portal-theme .portal-nav-item-active {
     border-color: rgba(59, 130, 246, 0.62);
-    background: linear-gradient(180deg, rgba(13, 20, 38, 0.98), rgba(8, 13, 27, 0.98));
+    background: rgba(255, 255, 255, 0.04);
     box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.28);
   }
 
@@ -1342,7 +1342,6 @@
   }
 
   .portal-theme .portal-panel,
-  .portal-theme .portal-stat-card,
   .portal-theme .portal-method-card,
   .portal-theme .portal-list-row,
   .portal-theme .portal-table-row,
@@ -1360,7 +1359,7 @@
     min-height: 126px;
     padding: 0.95rem;
     border-color: rgba(59, 130, 246, 0.22);
-    background: rgba(0, 0, 0, 0.86);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .portal-theme .portal-panel::before,
@@ -1417,18 +1416,18 @@
   .portal-theme .portal-heatmap,
   .portal-theme .portal-map-shell {
     border-color: rgba(255, 255, 255, 0.12);
-    background: rgba(0, 0, 0, 0.86);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .portal-theme .portal-panel-accent,
   .portal-theme .portal-stat-card-accent {
     border-color: rgba(255, 255, 255, 0.18);
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(255, 255, 255, 0.04);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   }
 
   .portal-theme .portal-stat-card-accent {
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .portal-theme .portal-avatar-ring,

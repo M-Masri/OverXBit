@@ -267,7 +267,7 @@ function getInsightRows(section, payload, user) {
 
 function OverviewCard({ item }) {
   return (
-    <div className={`portal-stat-card bg-gradient-to-r from-[#1D4ED8] to-[#3B82F6] ${item.accent ? 'portal-stat-card-accent' : ''}`}>
+    <div className={`portal-stat-card bg-[rgba(255,255,255,0.04)] ${item.accent ? 'portal-stat-card-accent' : ''}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="portal-stat-label">{item.label}</p>
@@ -734,7 +734,7 @@ function DashboardChartSection({ chartQuery, onRetry, className = 'mt-6' }) {
 
         {!chartQuery.isLoading && !chartQuery.isFetching && !chartQuery.error ? (
           series.length ? (
-            <div className="relative mt-7 rounded-[1.3rem] border border-white/12 bg-black/75 p-3 sm:p-4">
+            <div className="relative mt-7 rounded-[1.3rem] border border-white/12 bg-[rgba(255,255,255,0.04)] p-3 sm:p-4">
               <svg
                 viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                 className="h-[320px] w-full"
@@ -963,7 +963,7 @@ function SinglePeriodLineChartSection({
 
         {hasPeriodId && !chartQuery.isLoading && !chartQuery.isFetching && !chartQuery.error ? (
           linePoints.length ? (
-            <div className="relative mt-7 rounded-[1.3rem] border border-white/12 bg-black/75 p-3 sm:p-4">
+            <div className="relative mt-7 rounded-[1.3rem] border border-white/12 bg-[rgba(255,255,255,0.04)] p-3 sm:p-4">
               <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[320px] w-full">
                 <defs>
                   <linearGradient id="lineFill" x1="0" y1="0" x2="0" y2="1">
@@ -1139,7 +1139,7 @@ function PeriodsView({ payload, onRequestCashout, onRequestStore, actionState })
 
   return (
     <div className="space-y-6">
-      <div className="portal-panel rounded-[1.9rem] p-6 sm:p-4">
+      <div className="portal-panel rounded-[1.9rem] p-6 sm:p-4" style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Cycle Monitor</p>
@@ -1788,7 +1788,7 @@ function ClientPortalPage() {
   }
 
   return (
-    <div className="portal-theme min-h-screen overflow-x-hidden bg-black text-slate-100">
+    <div className="portal-theme min-h-screen overflow-x-hidden bg-grid text-slate-100">
       <div className="portal-backdrop-glow" />
 
       <main className="relative z-10 w-full p-0">
@@ -1874,8 +1874,8 @@ function ClientPortalPage() {
                 <DashboardPeriodsTable periods={periodOptions} />
               </section>
             ) : (
-              <section className="portal-panel mt-6 overflow-hidden rounded-[1.75rem]">
-                <div className="border-b border-white/12 bg-black/75 px-6 py-5 sm:px-8">
+              <section className="portal-panel mt-6 overflow-hidden rounded-[1.75rem]" style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
+                <div className="border-b border-white/12 bg-[rgba(255,255,255,0.04)] px-6 py-5 sm:px-8">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       {/* <p className="text-xs uppercase tracking-[0.22em] text-[#2ABBAF]">Data Grid</p> */}
@@ -1956,7 +1956,7 @@ function ClientPortalPage() {
               </button>
             </div>
 
-            <div className="mt-5 inline-flex rounded-xl border border-white/12 bg-black/60 p-1">
+            <div className="mt-5 inline-flex rounded-xl border border-white/12 bg-[rgba(255,255,255,0.04)] p-1">
               <button
                 type="button"
                 onClick={() => setCashoutDetailsType('bank')}
