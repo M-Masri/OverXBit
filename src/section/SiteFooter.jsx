@@ -111,7 +111,7 @@ function SiteFooter() {
           href="https://www.sawatech.com/"
           target="_blank"
           rel="noopener noreferrer"
-          className="footer-link text-[#2ABBAF] hover:text-[#2ABBAF]"
+          className="footer-link text-[#70A9DC] hover:text-[#8EC3EF]"
         >
           SawaTech
         </a>
