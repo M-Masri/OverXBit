@@ -510,6 +510,16 @@
     padding-right: 2.4rem;
   }
 
+  .contact-select option {
+    background-color: #0b1d52;
+    color: #eaf3ff;
+  }
+
+  .contact-select option:checked {
+    background-color: #1d3f80;
+    color: #ffffff;
+  }
+
   .contact-phone-container {
     width: 100%;
   }

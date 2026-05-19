@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import PhoneInputLib from 'react-phone-input-2'
 import 'react-phone-input-2/lib/style.css'
 import { createStaggerContainer, getInViewMotion, hoverSpring, motionEase, revealVariants } from '../lib/motion'
+import { servicesData } from '../lib/servicesData'
 
 const PhoneInput = PhoneInputLib.default ?? PhoneInputLib
 
@@ -19,13 +20,7 @@ const contactDetails = [
   { label: 'Email', value: 'info@overxbit.com', icon: 'mail' },
 ]
 
-const subjectOptions = [
-  'Subscription Plans',
-  'Technical Support',
-  'Partnership Inquiry',
-  'Career Opportunities',
-  'General Question',
-]
+const subjectOptions = servicesData.map((service) => service.title)
 
 function SocialIcon({ type }) {
   if (type === 'facebook') {
