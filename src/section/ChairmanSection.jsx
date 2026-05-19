@@ -59,7 +59,7 @@ function ChairmanSection() {
 
           <motion.article variants={textContainer} initial={reduceMotion ? false : 'hidden'} whileInView="visible" viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}>
             <motion.h3 variants={textVariants} className="text-4xl font-semibold text-white">Miro M. Fallahi</motion.h3>
-            <motion.p variants={textVariants} className="mt-2 text-xl text-[#2ABBAF]">Founder - Chairman</motion.p>
+            <motion.p variants={textVariants} className="mt-2 text-xl text-[#70A9DC]">Founder - Chairman</motion.p>
 
             <motion.div variants={textVariants} className="mt-6 space-y-5 text-lg leading-8 text-slate-300">
               <p>

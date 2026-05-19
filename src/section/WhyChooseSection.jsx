@@ -79,7 +79,7 @@ function WhyChooseSection() {
             whileInView="visible"
             viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}
           >
-            <motion.p variants={revealVariants} className="text-xs uppercase tracking-[0.2em] text-[#2ABBAF]">Why Overxbit</motion.p>
+            <motion.p variants={revealVariants} className="text-xs uppercase tracking-[0.2em] text-[#70A9DC]">Why Overxbit</motion.p>
             <motion.h2 variants={revealVariants} className="mt-3 font-display text-4xl text-white sm:text-5xl">
               Why
               <span className="text-gradient"> Choose Us?</span>
@@ -91,7 +91,7 @@ function WhyChooseSection() {
             <motion.button
               variants={revealVariants}
               type="button"
-              className="mt-6 rounded-md bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.08em] text-white shadow-[0_10px_24px_rgba(42,187,175,0.28)]"
+              className="mt-6 rounded-md bg-gradient-to-r from-[#70A9DC] to-[#3D6FA8] px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.08em] text-white shadow-[0_10px_24px_rgba(61,111,168,0.28)]"
               whileHover={reduceMotion ? undefined : { scale: 1.03 }}
               whileTap={reduceMotion ? undefined : { scale: 0.98 }}
               transition={hoverSpring}

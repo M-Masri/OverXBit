@@ -268,7 +268,7 @@ function HeroSection() {
           </motion.p>
           <motion.div variants={heroCtaVariants} className="mt-7 flex flex-wrap items-center justify-center gap-3 pointer-events-auto">
             <motion.button
-              className="rounded-full bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-7 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(42,187,175,0.5)] transition hover:brightness-110"
+              className="rounded-full bg-gradient-to-r from-[#70A9DC] to-[#3D6FA8] px-7 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(61,111,168,0.5)] transition hover:brightness-110"
               whileHover={reduceMotion ? undefined : { scale: 1.008, y: -1 }}
               whileTap={reduceMotion ? undefined : { scale: 0.98 }}
               transition={heroButtonTransition}

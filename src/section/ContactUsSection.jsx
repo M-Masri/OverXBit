@@ -140,7 +140,7 @@ function ContactUsSection() {
       <div className="contact-shell p-6 sm:p-8 lg:p-10">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
           <motion.div variants={leftContentVariants} initial={reduceMotion ? false : 'hidden'} whileInView="visible" viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}>
-            <motion.p variants={revealVariants} className="text-xs uppercase tracking-[0.2em] text-[#2ABBAF]">Get In Touch</motion.p>
+            <motion.p variants={revealVariants} className="text-xs uppercase tracking-[0.2em] text-[#70A9DC]">Get In Touch</motion.p>
             <motion.h2 variants={revealVariants} className="mt-3 font-display text-5xl text-white sm:text-6xl">
               Contact <span className="text-gradient">Us</span>
             </motion.h2>

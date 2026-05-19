@@ -135,7 +135,7 @@ function CryptoTickerStrip() {
           <div className="market-strip-overlay" />
 
           <div className="market-strip-inner" style={{ borderTop: 'none' }}>
-            <h3 className="market-strip-title">Live Crypto <span style={{color: '#2ABBAF'}}>Market</span></h3>
+            <h3 className="market-strip-title">Live Crypto <span style={{color: '#70A9DC'}}>Market</span></h3>
 
             <div className="market-marquee-stack" role="presentation">
               <div className="market-marquee">

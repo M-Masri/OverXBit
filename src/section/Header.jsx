@@ -112,7 +112,7 @@ function Header() {
               setActiveHash('#home')
               setIsServicesOpen(false)
             }}
-            className={`text-sm transition hover:text-white ${activeHash === '#home' ? 'font-semibold text-[#2ABBAF]' : 'text-slate-400'}`}
+            className={`text-sm transition hover:text-white ${activeHash === '#home' ? 'font-semibold text-[#70A9DC]' : 'text-slate-400'}`}
           >
             Home
           </Link>
@@ -121,7 +121,7 @@ function Header() {
             <button
               type="button"
               onClick={() => setIsServicesOpen((prev) => !prev)}
-              className={`inline-flex items-center gap-2 text-sm transition hover:text-white ${activeHash === '#services' || isServicesOpen ? 'font-semibold text-[#2ABBAF]' : 'text-slate-400'}`}
+              className={`inline-flex items-center gap-2 text-sm transition hover:text-white ${activeHash === '#services' || isServicesOpen ? 'font-semibold text-[#70A9DC]' : 'text-slate-400'}`}
               aria-haspopup="menu"
               aria-expanded={isServicesOpen}
             >
@@ -156,7 +156,7 @@ function Header() {
                 setActiveHash(link.match)
                 setIsServicesOpen(false)
               }}
-              className={`text-sm transition hover:text-white ${activeHash === link.match ? 'font-semibold text-[#2ABBAF]' : 'text-slate-400'}`}
+              className={`text-sm transition hover:text-white ${activeHash === link.match ? 'font-semibold text-[#70A9DC]' : 'text-slate-400'}`}
             >
               {link.label}
             </Link>
@@ -215,7 +215,7 @@ function Header() {
             <div>
               <Link
                 to={hasUserData ? '/portal/dashboard' : '/login'}
-                className="header-cta bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-5 py-1.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(42,187,175,0.45)] transition hover:brightness-110"
+                className="header-cta bg-gradient-to-r from-[#70A9DC] to-[#3D6FA8] px-5 py-1.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(61,111,168,0.45)] transition hover:brightness-110"
               >
                 {hasUserData ? 'Dashboard' : 'Login'}
               </Link>

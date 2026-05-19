@@ -41,14 +41,14 @@ function TradingJourneySection() {
           viewport={reduceMotion ? undefined : { once: true, amount: 0.2 }}
         >
           <motion.div variants={revealVariants}>
-            <p className="text-xs uppercase tracking-[0.2em] text-[#2ABBAF]">How It Works</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#70A9DC]">How It Works</p>
             <h2 className="mt-3 font-display text-4xl text-white sm:text-5xl">
               Your Investment Journey In  <span className="text-gradient">4 Steps</span>
             </h2>
           </motion.div>
           <motion.button
             variants={revealVariants}
-            className="rounded-full bg-gradient-to-r from-[#2ABBAF] to-[#2ABBAF] px-6 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(42,187,175,0.35)]"
+            className="rounded-full bg-gradient-to-r from-[#70A9DC] to-[#3D6FA8] px-6 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(61,111,168,0.35)]"
             whileHover={reduceMotion ? undefined : { scale: 1.03 }}
             whileTap={reduceMotion ? undefined : { scale: 0.98 }}
             transition={hoverSpring}
@@ -75,14 +75,14 @@ function TradingJourneySection() {
                   : {
                       y: -6,
                       scale: 1.02,
-                      borderColor: 'rgba(42, 187, 175, 0.5)',
-                      boxShadow: '0 20px 38px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(42, 187, 175, 0.2)',
+                      borderColor: 'rgba(112, 169, 220, 0.5)',
+                      boxShadow: '0 20px 38px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(112, 169, 220, 0.2)',
                       backgroundColor: 'rgba(22, 24, 33, 0.7)',
                     }
               }
               transition={hoverSpring}
             >
-              <p className="text-3xl font-bold text-[#2ABBAF]">{item.step}</p>
+              <p className="text-3xl font-bold text-[#70A9DC]">{item.step}</p>
               <h3 className="mt-3 text-xl font-semibold text-white">{item.title}</h3>
               <p className="mt-3 leading-7 text-slate-300">{item.text}</p>
             </motion.article>
