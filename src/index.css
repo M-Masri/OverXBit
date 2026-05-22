@@ -1,11 +1,17 @@
-@import url('https://fonts.cdnfonts.com/css/avant-garde');
+@font-face {
+  font-family: 'AvantGarde ExtraLight';
+  src: url('/assets/fonts/AvantGarde-ExtraLight.otf') format('opentype');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-brand: 'AvantGarde', 'ITC Avant Garde Gothic', 'Century Gothic', sans-serif;
+  --font-brand: 'AvantGarde ExtraLight', 'ITC Avant Garde Gothic', 'Century Gothic', sans-serif;
   --bg-base: #060607;
   --bg-surface: #111217;
   --txt-main: #e2e8f0;
@@ -23,6 +29,7 @@
   *::before,
   *::after {
     font-family: var(--font-brand);
+    font-weight: 200 !important;
   }
 
   html {
