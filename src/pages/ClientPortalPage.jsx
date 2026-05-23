@@ -24,6 +24,8 @@ import {
   overxApi,
   useChangePasswordMutation,
   useCreatePortalCashoutDetailsMutation,
+  useDownloadAllPeriodReportsMutation,
+  useDownloadPeriodReportMutation,
   useGetPortalDashboardQuery,
   useGetPortalHistoryQuery,
   useGetPortalMethodsQuery,
@@ -600,9 +602,22 @@ function getPeriodOptionLabel(period) {
     return 'Unknown period'
   }
 
-  const start = formatDate(period.start_date)
-  const end = formatDate(period.end_date)
-  return `${start} - ${end}`
+  const periodLabel = period.period || period.label || period.name || ''
+  if (periodLabel) {
+    return String(periodLabel)
+  }
+
+  const startDate =
+    period.start_date || period.startDate || period.started_at || period.startedAt || period.from_date || period.fromDate || null
+  const endDate = period.end_date || period.endDate || period.ended_at || period.endedAt || period.to_date || period.toDate || null
+  const start = formatDate(startDate)
+  const end = formatDate(endDate)
+
+  if (start !== 'Not available' || end !== 'Not available') {
+    return `${start} - ${end}`
+  }
+
+  return `Period #${period.id || 'N/A'}`
 }
 
 function formatStatusLabel(status) {
@@ -1049,7 +1064,89 @@ function SinglePeriodLineChartSection({
 }
 
 function DashboardPeriodsTable({ periods }) {
+  const token = useSelector(selectToken)
+  const [downloadAllPeriodReports, { isLoading: allReportsLoading }] = useDownloadAllPeriodReportsMutation()
+  const [downloadPeriodReport] = useDownloadPeriodReportMutation()
+  const [activePeriodReportId, setActivePeriodReportId] = useState(null)
+  const [allReportsHref, setAllReportsHref] = useState('#')
+  const [periodReportHrefs, setPeriodReportHrefs] = useState({})
   const rows = Array.isArray(periods) ? periods.slice(0, 8) : []
+
+  function resolveApiUrl(response) {
+    const url = response.data.url
+    return typeof url === 'string' ? url.trim() : ''
+  }
+
+  async function handleDownloadAllReports(event) {
+    if (allReportsHref !== '#') {
+      return
+    }
+
+    event.preventDefault()
+
+    if (!token) {
+      return
+    }
+
+    try {
+      const response = await downloadAllPeriodReports({ token }).unwrap()
+      const url = resolveApiUrl(response)
+
+      if (!url) {
+        return
+      }
+
+      setAllReportsHref(url)
+
+      const opened = window.open(url, '_blank')
+      if (!opened) {
+        window.location.href = url
+      }
+    } catch (error) {}
+  }
+
+  async function handleDownloadSingleReport(event, period) {
+    const earningPeriodId = Number(period?.id)
+    const existingHref = periodReportHrefs[earningPeriodId]
+
+    if (existingHref) {
+      return
+    }
+
+    event.preventDefault()
+
+    if (!Number.isFinite(earningPeriodId) || earningPeriodId <= 0 || !token) {
+      return
+    }
+
+    setActivePeriodReportId(earningPeriodId)
+
+    try {
+      const response = await downloadPeriodReport({
+        earning_period_id: earningPeriodId,
+        token,
+      }).unwrap()
+
+      const urlToOpen = resolveApiUrl(response)
+
+      if (!urlToOpen) {
+        return
+      }
+
+      setPeriodReportHrefs((prev) => ({
+        ...prev,
+        [earningPeriodId]: urlToOpen,
+      }))
+
+      const opened = window.open(urlToOpen, '_blank')
+      if (!opened) {
+        window.location.href = urlToOpen
+      }
+    } catch (error) {
+    } finally {
+      setActivePeriodReportId(null)
+    }
+  }
 
   return (
     <section className="portal-panel rounded-[1.45rem] p-4 sm:p-5">
@@ -1058,7 +1155,18 @@ function DashboardPeriodsTable({ periods }) {
           <p className="portal-subtitle">Data Table</p>
           <h3 className="mt-1 text-xl font-semibold text-white">Recent periods</h3>
         </div>
-        <span className="portal-chip">{rows.length} rows</span>
+        <div className="flex items-center gap-2">
+          <span className="portal-chip">{rows.length} rows</span>
+          <a
+            href={allReportsHref}
+            onClick={handleDownloadAllReports}
+            className="portal-secondary-button cursor-pointer"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {allReportsLoading ? 'Downloading...' : 'Download All Reports'}
+          </a>
+        </div>
       </div>
 
       {rows.length ? (
@@ -1071,18 +1179,32 @@ function DashboardPeriodsTable({ periods }) {
                 <th>Decision</th>
                 <th>BTC Earned</th>
                 <th>Revenue</th>
+                <th>Report</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((period) => (
-                <tr key={period.id}>
-                  <td>{formatDate(period.start_date)} - {formatDate(period.end_date)}</td>
-                  <td><span className="portal-badge">{formatStatusLabel(period.status)}</span></td>
-                  <td>{period.client_decision || 'pending'}</td>
-                  <td>{formatBtc(period.total_btc_earned)}</td>
-                  <td>{formatMoney(period.total_revenue)}</td>
-                </tr>
-              ))}
+              {rows.map((period) => {
+                return (
+                  <tr key={period.id}>
+                    <td>{period.period || period.label || `${formatDate(period.start_date)} - ${formatDate(period.end_date)}`}</td>
+                    <td><span className="portal-badge">{formatStatusLabel(period.status)}</span></td>
+                    <td>{period.client_decision || 'pending'}</td>
+                    <td>{formatBtc(period.total_btc_earned)}</td>
+                    <td>{formatMoney(period.total_revenue)}</td>
+                    <td>
+                      <a
+                        href={periodReportHrefs[Number(period.id)] || '#'}
+                        onClick={(event) => handleDownloadSingleReport(event, period)}
+                        className="portal-secondary-button cursor-pointer"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {activePeriodReportId === Number(period.id) ? 'Downloading...' : 'Download Reports'}
+                      </a>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -1165,7 +1287,9 @@ function PeriodsView({ payload, onRequestCashout, onRequestStore, actionState })
             periods.map((period) => (
               <div key={period.id} className="portal-table-row">
                 <div>
-                  <p className="text-sm font-semibold text-white">{formatDate(period.start_date)} <span className="text-slate-500">to</span> {formatDate(period.end_date)}</p>
+                  <p className="text-sm font-semibold text-white">
+                    {period.period || period.label || `${formatDate(period.start_date)} - ${formatDate(period.end_date)}`}
+                  </p>
                   <p className="mt-1 text-sm text-slate-400">{period.days_count} days · Decision: {period.client_decision || 'pending'}</p>
                 </div>
                 <div>
@@ -1525,9 +1649,25 @@ function ClientPortalPage() {
   )
   const periodOptions = useMemo(() => {
     const rows = Array.isArray(dashboardPeriodsQuery.data?.periods) ? dashboardPeriodsQuery.data.periods : []
+
+    const resolvePeriodDate = (period) =>
+      period?.end_date ||
+      period?.endDate ||
+      period?.ended_at ||
+      period?.endedAt ||
+      period?.to_date ||
+      period?.toDate ||
+      period?.start_date ||
+      period?.startDate ||
+      period?.started_at ||
+      period?.startedAt ||
+      period?.from_date ||
+      period?.fromDate ||
+      0
+
     return [...rows].sort((a, b) => {
-      const aDate = new Date(a?.end_date || a?.start_date || 0).getTime()
-      const bDate = new Date(b?.end_date || b?.start_date || 0).getTime()
+      const aDate = new Date(resolvePeriodDate(a)).getTime()
+      const bDate = new Date(resolvePeriodDate(b)).getTime()
       if (bDate !== aDate) {
         return bDate - aDate
       }

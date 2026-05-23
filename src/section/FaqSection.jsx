@@ -57,7 +57,7 @@ function FaqSection() {
   const [openItems, setOpenItems] = useState({})
   const reduceMotion = useReducedMotion()
   const inViewMotion = getInViewMotion(reduceMotion)
-  const faqContainer = createStaggerContainer(0.16, 0.1)
+  const faqContainer = createStaggerContainer(0, 0)
 
   const toggleItem = (question) => {
     setOpenItems((prev) => ({

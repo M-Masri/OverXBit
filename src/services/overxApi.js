@@ -56,8 +56,37 @@ function unwrapResult(result) {
 export const overxApi = createApi({
   reducerPath: 'overxApi',
   baseQuery,
-  tagTypes: ['Auth', 'Dashboard', 'Periods', 'History', 'Methods', 'Profile', 'Chart'],
+  tagTypes: ['Auth', 'Dashboard', 'Periods', 'History', 'Methods', 'Profile', 'Chart', 'Services'],
   endpoints: (builder) => ({
+    getPublicServices: builder.query({
+      query: () => '/services',
+      transformResponse: (response) => {
+        const rows = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : []
+        return {
+          services: rows.map((service) => ({
+            id: service?.id,
+            number: service?.number,
+            title: service?.title,
+            card_image: service?.card_image,
+          })),
+        }
+      },
+      providesTags: ['Services'],
+    }),
+    getPublicServiceById: builder.query({
+      query: (serviceId) => `/services/${serviceId}`,
+      transformResponse: (response) => ({
+        service: response?.data || null,
+      }),
+      providesTags: (_result, _error, serviceId) => [{ type: 'Services', id: String(serviceId) }],
+    }),
+    submitContact: builder.mutation({
+      query: (payload) => ({
+        url: '/contact',
+        method: 'POST',
+        body: payload,
+      }),
+    }),
     login: builder.mutation({
       query: (credentials) => ({
         url: '/login',
@@ -159,6 +188,20 @@ export const overxApi = createApi({
       }),
       invalidatesTags: ['Periods', 'Dashboard', 'History'],
     }),
+    downloadAllPeriodReports: builder.mutation({
+      query: ({ token }) => ({
+        url: '/client/earning-periods/report',
+        method: 'GET',
+        params: token ? { token } : undefined,
+      }),
+    }),
+    downloadPeriodReport: builder.mutation({
+      query: ({ earning_period_id, token }) => ({
+        url: `/client/earning-periods/${earning_period_id}/report`,
+        method: 'GET',
+        params: token ? { token } : undefined,
+      }),
+    }),
     getPortalHistory: builder.query({
       async queryFn(_arg, _api, _extraOptions, fetchWithBQ) {
         const [transactionsResult, cashoutsResult, storedResult] = await Promise.all([
@@ -249,6 +292,9 @@ export const overxApi = createApi({
 })
 
 export const {
+  useGetPublicServicesQuery,
+  useGetPublicServiceByIdQuery,
+  useSubmitContactMutation,
   useCreatePortalCashoutDetailsMutation,
   useChangePasswordMutation,
   useGetMeQuery,
@@ -261,6 +307,8 @@ export const {
   useGetPortalProfileQuery,
   useLoginMutation,
   useLogoutMutation,
+  useDownloadAllPeriodReportsMutation,
+  useDownloadPeriodReportMutation,
   useRequestPeriodCashoutMutation,
   useRequestPeriodStoreMutation,
   useUpdatePortalProfileMutation,

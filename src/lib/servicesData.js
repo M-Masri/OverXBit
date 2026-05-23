@@ -219,3 +219,25 @@ export const servicesData = [
 export function findServiceBySlug(slug) {
   return servicesData.find((service) => service.slug === slug)
 }
+
+function normalizeServiceId(value) {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return ''
+  }
+
+  const numeric = Number(raw)
+  if (Number.isFinite(numeric)) {
+    return String(numeric)
+  }
+
+  return raw.toLowerCase()
+}
+
+export function findServiceById(id) {
+  const target = normalizeServiceId(id)
+  return servicesData.find((service) => {
+    const currentId = normalizeServiceId(service.id)
+    return currentId === target
+  })
+}

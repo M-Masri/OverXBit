@@ -4,6 +4,7 @@ import PhoneInputLib from 'react-phone-input-2'
 import 'react-phone-input-2/lib/style.css'
 import { createStaggerContainer, getInViewMotion, hoverSpring, motionEase, revealVariants } from '../lib/motion'
 import { servicesData } from '../lib/servicesData'
+import { useSubmitContactMutation } from '../services/overxApi'
 
 const PhoneInput = PhoneInputLib.default ?? PhoneInputLib
 
@@ -91,10 +92,65 @@ function ContactDetailIcon({ type }) {
 
 function ContactUsSection() {
   const [phone, setPhone] = useState('971')
+  const [formValues, setFormValues] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: '',
+  })
+  const [feedback, setFeedback] = useState({ type: '', message: '' })
+  const [submitContact, { isLoading }] = useSubmitContactMutation()
   const reduceMotion = useReducedMotion()
   const inViewMotion = getInViewMotion(reduceMotion)
   const detailsContainer = createStaggerContainer(0.1, 0.06)
   const socialsContainer = createStaggerContainer(0.08, 0)
+
+  const handleFieldChange = (field) => (event) => {
+    setFormValues((prev) => ({
+      ...prev,
+      [field]: event.target.value,
+    }))
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setFeedback({ type: '', message: '' })
+
+    const payload = {
+      name: formValues.name.trim(),
+      email: formValues.email.trim(),
+      phone: phone.startsWith('+') ? phone : `+${phone}`,
+      subject: formValues.subject,
+      message: formValues.message.trim(),
+    }
+
+    if (!payload.name || !payload.email || !payload.phone || !payload.subject || !payload.message) {
+      setFeedback({
+        type: 'error',
+        message: 'Please complete all fields before sending.',
+      })
+      return
+    }
+
+    try {
+      await submitContact(payload).unwrap()
+      setFeedback({
+        type: 'success',
+        message: 'Message sent successfully. Our team will contact you soon.',
+      })
+      setFormValues({
+        name: '',
+        email: '',
+        subject: '',
+        message: '',
+      })
+      setPhone('971')
+    } catch (error) {
+      const fallbackMessage = 'Unable to send your message right now. Please try again.'
+      const errorMessage = error?.data?.message || error?.message || fallbackMessage
+      setFeedback({ type: 'error', message: errorMessage })
+    }
+  }
 
   const leftContentVariants = {
     hidden: {
@@ -191,6 +247,7 @@ function ContactUsSection() {
 
           <motion.form
             className="contact-form-card p-5 sm:p-8"
+            onSubmit={handleSubmit}
             variants={formVariants}
             initial={reduceMotion ? false : 'hidden'}
             whileInView="visible"
@@ -199,12 +256,27 @@ function ContactUsSection() {
             <div className="grid gap-5 sm:grid-cols-2">
               <label className="block">
                 <span className="contact-label">Name</span>
-                <motion.input className="contact-input mt-2" placeholder="John Carter" whileFocus={reduceMotion ? undefined : { scale: 1.01 }} transition={hoverSpring} />
+                <motion.input
+                  className="contact-input mt-2"
+                  placeholder="John Carter"
+                  value={formValues.name}
+                  onChange={handleFieldChange('name')}
+                  whileFocus={reduceMotion ? undefined : { scale: 1.01 }}
+                  transition={hoverSpring}
+                />
               </label>
 
               <label className="block">
                 <span className="contact-label">Email</span>
-                <motion.input className="contact-input mt-2" placeholder="example@youremail.com" type="email" whileFocus={reduceMotion ? undefined : { scale: 1.01 }} transition={hoverSpring} />
+                <motion.input
+                  className="contact-input mt-2"
+                  placeholder="example@youremail.com"
+                  type="email"
+                  value={formValues.email}
+                  onChange={handleFieldChange('email')}
+                  whileFocus={reduceMotion ? undefined : { scale: 1.01 }}
+                  transition={hoverSpring}
+                />
               </label>
             </div>
 
@@ -225,7 +297,13 @@ function ContactUsSection() {
 
               <label className="block">
                 <span className="contact-label">Subject</span>
-                <motion.select className="contact-input contact-select mt-2" defaultValue="" whileFocus={reduceMotion ? undefined : { scale: 1.01 }} transition={hoverSpring}>
+                <motion.select
+                  className="contact-input contact-select mt-2"
+                  value={formValues.subject}
+                  onChange={handleFieldChange('subject')}
+                  whileFocus={reduceMotion ? undefined : { scale: 1.01 }}
+                  transition={hoverSpring}
+                >
                   <option value="" disabled>
                     Select subject
                   </option>
@@ -243,19 +321,28 @@ function ContactUsSection() {
               <motion.textarea
                 className="contact-input mt-2 min-h-[130px] resize-none"
                 placeholder="Type your message here..."
+                value={formValues.message}
+                onChange={handleFieldChange('message')}
                 whileFocus={reduceMotion ? undefined : { scale: 1.01 }}
                 transition={hoverSpring}
               />
             </label>
 
+            {feedback.message && (
+              <p className={`mt-4 text-sm ${feedback.type === 'error' ? 'text-rose-300' : 'text-emerald-300'}`}>
+                {feedback.message}
+              </p>
+            )}
+
             <motion.button
-              type="button"
+              type="submit"
+              disabled={isLoading}
               className="contact-submit-btn mt-6 px-8 py-3 text-sm font-semibold"
               whileHover={reduceMotion ? undefined : { scale: 1.03 }}
               whileTap={reduceMotion ? undefined : { scale: 0.98 }}
               transition={hoverSpring}
             >
-              Send message
+              {isLoading ? 'Sending...' : 'Send message'}
             </motion.button>
           </motion.form>
         </div>

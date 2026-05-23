@@ -14,7 +14,9 @@ import ClientPortalPage from './pages/ClientPortalPage'
 import ServicePage from './pages/ServicePage'
 import FaqPage from './pages/FaqPage'
 import ContactPage from './pages/ContactPage'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import AboutPage from './pages/AboutPage'
+import InvestmentPlanPage from './pages/InvestmentPlanPage'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { clearSession, selectIsAuthenticated, selectSessionReady, selectToken, setSessionReady, setUser } from './services/authSlice'
@@ -108,15 +110,28 @@ function ProtectedRoute({ children }) {
   return children
 }
 
+function ScrollToTopOnRouteChange() {
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [pathname])
+
+  return null
+}
+
 function App() {
   return (
     <>
       <AuthSessionSync />
+      <ScrollToTopOnRouteChange />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/investment-plan" element={<InvestmentPlanPage />} />
         <Route path="/services/:slug" element={<ServicePage />} />
         <Route path="/portal/*" element={<ProtectedRoute><ClientPortalPage /></ProtectedRoute>} />
       </Routes>

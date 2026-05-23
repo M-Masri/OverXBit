@@ -4,12 +4,12 @@ import { useSelector } from 'react-redux'
 import { useDispatch } from 'react-redux'
 import { FaChevronDown, FaUserLarge } from 'react-icons/fa6'
 import brandLogo from '../assets/OVERXBIT LOGO-04.png'
-import { servicesData } from '../lib/servicesData'
 import { clearSession, selectUser } from '../services/authSlice'
 import { clearStoredToken } from '../services/sessionStorage'
-import { overxApi } from '../services/overxApi'
+import { overxApi, useGetPublicServicesQuery } from '../services/overxApi'
 
 const navLinks = [
+  { label: 'About', to: '/about', match: '/about' },
   { label: 'FAQ', to: '/faq', match: '/faq' },
   { label: 'Contact', to: '/contact', match: '/contact' },
 ]
@@ -21,12 +21,18 @@ function Header() {
   const user = useSelector(selectUser)
   const hasUserData = Boolean(user)
   const isPortalRoute = location.pathname.startsWith('/portal')
+  const { data: servicesResponse, isLoading: isServicesLoading, isFetching: isServicesFetching } = useGetPublicServicesQuery()
   const [activeHash, setActiveHash] = useState('#home')
   const [isSticky, setIsSticky] = useState(false)
   const [isServicesOpen, setIsServicesOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const servicesMenuRef = useRef(null)
   const profileMenuRef = useRef(null)
+  const servicesMenuItems = Array.isArray(servicesResponse?.services)
+    ? servicesResponse.services
+      .map((service) => ({ id: service?.id, title: service?.title }))
+      .filter((service) => service.title)
+    : []
   // Animation removed
 
   useEffect(() => {
@@ -117,6 +123,17 @@ function Header() {
             Home
           </Link>
 
+          <Link
+            to="/about"
+            onClick={() => {
+              setActiveHash('/about')
+              setIsServicesOpen(false)
+            }}
+            className={`text-sm transition hover:text-white ${activeHash === '/about' ? 'font-semibold text-[#70A9DC]' : 'text-slate-400'}`}
+          >
+            About us
+          </Link>
+
           <div className="relative" ref={servicesMenuRef}>
             <button
               type="button"
@@ -131,10 +148,18 @@ function Header() {
 
             {isServicesOpen && (
               <div className="absolute left-0 top-full z-50 mt-3 w-64 overflow-hidden rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_16px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-                {servicesData.map((service) => (
+                {(isServicesLoading || isServicesFetching) && !servicesMenuItems.length ? (
+                  <span className="block rounded-lg px-3 py-2 text-sm text-slate-400">Loading services...</span>
+                ) : null}
+
+                {!isServicesLoading && !isServicesFetching && !servicesMenuItems.length ? (
+                  <span className="block rounded-lg px-3 py-2 text-sm text-slate-400">No services available.</span>
+                ) : null}
+
+                {servicesMenuItems.map((service) => (
                   <Link
-                    key={service.slug}
-                    to={`/services/${service.slug}`}
+                    key={`${service.id || service.title}`}
+                    to={service.id ? `/services/${service.id}` : '/'}
                     onClick={() => {
                       setIsServicesOpen(false)
                       setActiveHash('#services')
@@ -148,7 +173,18 @@ function Header() {
             )}
           </div>
 
-          {navLinks.map((link) => (
+          <Link
+            to="/investment-plan"
+            onClick={() => {
+              setActiveHash('/investment-plan')
+              setIsServicesOpen(false)
+            }}
+            className={`text-sm transition hover:text-white ${activeHash === '/investment-plan' ? 'font-semibold text-[#70A9DC]' : 'text-slate-400'}`}
+          >
+            Investment plan
+          </Link>
+
+          {navLinks.filter((link) => link.match !== '/about').map((link) => (
             <Link
               key={link.match}
               to={link.to}
