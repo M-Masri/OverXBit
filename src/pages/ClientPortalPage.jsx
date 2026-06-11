@@ -3,7 +3,9 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   FaArrowRight,
   FaArrowTrendUp,
+  FaBars,
   FaBitcoin,
+  FaXmark,
   FaChartLine,
   FaChevronRight,
   FaClock,
@@ -21,7 +23,6 @@ import { useDispatch, useSelector } from 'react-redux'
 import brandLogo from '../assets/OVERXBIT LOGO-04.png'
 import { clearSession, selectToken, selectUser } from '../services/authSlice'
 import {
-  overxApi,
   useChangePasswordMutation,
   useCreatePortalCashoutDetailsMutation,
   useDownloadAllPeriodReportsMutation,
@@ -33,15 +34,22 @@ import {
   useGetPortalSinglePeriodChartQuery,
   useGetPortalPeriodsQuery,
   useGetPortalProfileQuery,
+  useGetTradingContractsQuery,
+  useGetTradingHistoryQuery,
+  useGetTradingPeriodsChartQuery,
+  useGetTradingPeriodsQuery,
+  useGetTradingStoredBalanceQuery,
   useLogoutMutation,
   useRequestPeriodCashoutMutation,
   useRequestPeriodStoreMutation,
+  useRequestTradingCashoutMutation,
+  useRequestTradingStoreMutation,
   useUpdatePortalProfileMutation,
 } from '../services/overxApi'
 import { clearStoredToken } from '../services/sessionStorage'
 import Header from '../section/Header'
 
-const portalSections = [
+const miningSections = [
   {
     slug: 'dashboard',
     label: 'Dashboard',
@@ -78,6 +86,55 @@ const portalSections = [
     icon: FaUserLarge,
   },
 ]
+
+const tradingSections = [
+  {
+    slug: 'dashboard',
+    label: 'Dashboard',
+    title: 'Trading portfolio and monthly momentum',
+    description: 'Active contracts, stored USD balance, and monthly earnings at a glance.',
+    icon: FaChartLine,
+  },
+  {
+    slug: 'periods',
+    label: 'Monthly Periods',
+    title: 'Month-end decisions and earning cycles',
+    description: 'Review completed months and submit cashout or store requests.',
+    icon: FaLayerGroup,
+  },
+  {
+    slug: 'contracts',
+    label: 'Trading Contracts',
+    title: 'Active and expired trading agreements',
+    description: 'Browse trading contracts, ROI, and agreement files.',
+    icon: FaShieldHalved,
+  },
+  {
+    slug: 'history',
+    label: 'Trading Ledger',
+    title: 'Cashouts and stored trading earnings',
+    description: 'Track processed payouts and stored USD balances.',
+    icon: FaMoneyBillTransfer,
+  },
+  {
+    slug: 'methods',
+    label: 'Cashout Methods',
+    title: 'Wallets and bank rails ready for payouts',
+    description: 'Display saved payout methods and default settlement preferences.',
+    icon: FaCreditCard,
+  },
+  {
+    slug: 'profile',
+    label: 'Client Profile',
+    title: 'Identity and account footprint',
+    description: 'Present the client dossier and account details in one place.',
+    icon: FaUserLarge,
+  },
+]
+
+function getPortalSections(module) {
+  return module === 'trading' ? tradingSections : miningSections
+}
 
 const mapDots = [
   { top: '18%', left: '16%' },
@@ -141,9 +198,20 @@ function formatDateTime(value) {
   }).format(date)
 }
 
-function resolveSection(pathname) {
+function resolveSection(pathname, module) {
   const slug = pathname.split('/')[2] || 'dashboard'
-  return portalSections.find((section) => section.slug === slug) || portalSections[0]
+  const sections = getPortalSections(module)
+  return sections.find((section) => section.slug === slug) || sections[0]
+}
+
+function getPendingTradingPeriods(payload) {
+  const pending = Array.isArray(payload?.pendingPeriods) ? payload.pendingPeriods : []
+  if (pending.length) {
+    return pending
+  }
+
+  const periods = Array.isArray(payload?.periods) ? payload.periods : []
+  return periods.filter((period) => period?.is_eligible_for_decision)
 }
 
 function getStatusTone(status) {
@@ -183,7 +251,76 @@ function createActivityMatrix(payload) {
   })
 }
 
-function getOverviewCards(section, payload, user) {
+function getOverviewCards(module, section, payload, user) {
+  if (module === 'trading') {
+    if (section.slug === 'dashboard') {
+      const contracts = payload.contracts || []
+      const pendingPeriods = getPendingTradingPeriods(payload)
+      const chartDetails = Array.isArray(payload.chart?.details) ? payload.chart.details : []
+      const totalEarnings = chartDetails.reduce((sum, entry) => sum + Number(entry?.total_earning || 0), 0)
+
+      return [
+        { label: 'Active Contracts', value: String(contracts.filter((c) => c.status === 'active').length), hint: 'Live agreements', accent: true },
+        { label: 'Pending Decisions', value: String(pendingPeriods.length), hint: 'Months awaiting action' },
+        { label: 'Stored Balance', value: formatMoney(payload.storedBalance), hint: 'Trading reserve (USD)' },
+        { label: 'Total Earnings', value: formatMoney(totalEarnings), hint: 'Across chart periods' },
+      ]
+    }
+
+    if (section.slug === 'periods') {
+      const periods = payload.periods || []
+      const pendingPeriods = getPendingTradingPeriods(payload)
+      const totalEarning = periods.reduce((sum, period) => sum + Number(period?.total_earning || 0), 0)
+
+      return [
+        { label: 'Listed Periods', value: String(payload.periodsMeta?.total || periods.length || 0), hint: 'Monthly cycles', accent: true },
+        { label: 'Ready To Act', value: String(pendingPeriods.length), hint: 'Eligible for decision' },
+        { label: 'Total Earning', value: formatMoney(totalEarning), hint: 'Across fetched periods' },
+        { label: 'Request Pending', value: String(periods.filter((p) => p.status === 'request_pending').length), hint: 'Awaiting admin' },
+      ]
+    }
+
+    if (section.slug === 'contracts') {
+      const contracts = payload.contracts || []
+      const active = contracts.filter((contract) => contract.status === 'active')
+      const totalAmount = contracts.reduce((sum, contract) => sum + Number(contract?.amount || 0), 0)
+      const totalEarning = contracts.reduce((sum, contract) => sum + Number(contract?.earning || 0), 0)
+
+      return [
+        { label: 'Contracts', value: String(payload.contractsMeta?.total || contracts.length || 0), hint: 'Trading agreements', accent: true },
+        { label: 'Active', value: String(active.length), hint: 'Currently running' },
+        { label: 'Total Invested', value: formatMoney(totalAmount), hint: 'Contract amounts' },
+        { label: 'Total Earning', value: formatMoney(totalEarning), hint: 'Reported contract earnings' },
+      ]
+    }
+
+    if (section.slug === 'history') {
+      return [
+        { label: 'Cashouts', value: String(payload.cashoutsMeta?.total || payload.cashouts?.length || 0), hint: 'Payout events', accent: true },
+        { label: 'Stored Records', value: String(payload.storedMeta?.total || payload.storedEarnings?.length || 0), hint: 'Stored entries' },
+        { label: 'Stored Balance', value: formatMoney(payload.storedMeta?.stored_balance), hint: 'Current reserve' },
+        { label: 'Latest Cashout', value: formatMoney(payload.cashouts?.[0]?.amount), hint: 'Most recent payout' },
+      ]
+    }
+
+    if (section.slug === 'methods') {
+      const methods = payload.methods || []
+      return [
+        { label: 'Saved Methods', value: String(methods.length), hint: 'Available payout rails', accent: true },
+        { label: 'Crypto', value: String(methods.filter((method) => method.type === 'crypto').length), hint: 'Wallet endpoints' },
+        { label: 'Bank', value: String(methods.filter((method) => method.type === 'bank').length), hint: 'Banking endpoints' },
+        { label: 'Default', value: methods.find((method) => method.is_default)?.label || 'Not set', hint: 'Settlement priority' },
+      ]
+    }
+
+    return [
+      { label: 'Account', value: payload.profile?.name || user?.name || 'Client', hint: 'Signed-in identity', accent: true },
+      { label: 'Email', value: payload.profile?.email || user?.email || 'Not set', hint: 'Primary contact' },
+      { label: 'Phone', value: payload.profile?.phone || 'Not set', hint: 'Reachable number' },
+      { label: 'Member Since', value: formatDate(payload.profile?.created_at), hint: 'Account created' },
+    ]
+  }
+
   if (section.slug === 'dashboard') {
     const stats = payload.dashboard?.stats || {}
     const revenueToday =
@@ -238,7 +375,58 @@ function getOverviewCards(section, payload, user) {
   ]
 }
 
-function getInsightRows(section, payload, user) {
+function getInsightRows(module, section, payload, user) {
+  if (module === 'trading') {
+    if (section.slug === 'dashboard') {
+      const pendingPeriods = getPendingTradingPeriods(payload)
+      return [
+        { label: 'Client', value: user?.email || 'Not available' },
+        { label: 'Stored Balance', value: formatMoney(payload.storedBalance) },
+        { label: 'Active Contracts', value: String((payload.contracts || []).filter((c) => c.status === 'active').length) },
+        { label: 'Pending Decisions', value: String(pendingPeriods.length) },
+      ]
+    }
+
+    if (section.slug === 'periods') {
+      return (payload.periods || []).slice(0, 4).map((period) => ({
+        label: period.period || `${formatDate(period.start_date)} - ${formatDate(period.end_date)}`,
+        value: period.status || 'unknown',
+        tone: getStatusTone(period.status),
+      }))
+    }
+
+    if (section.slug === 'contracts') {
+      return (payload.contracts || []).slice(0, 4).map((contract) => ({
+        label: contract.period_label || `Contract #${contract.id}`,
+        value: contract.status || 'unknown',
+        tone: contract.status === 'active' ? 'positive' : 'neutral',
+      }))
+    }
+
+    if (section.slug === 'history') {
+      return (payload.cashouts || []).slice(0, 4).map((cashout) => ({
+        label: formatDate(cashout.date),
+        value: formatMoney(cashout.amount),
+        tone: getStatusTone(cashout.status),
+      }))
+    }
+
+    if (section.slug === 'methods') {
+      return (payload.methods || []).slice(0, 4).map((method) => ({
+        label: method.label || 'Untitled method',
+        value: method.type || 'method',
+        tone: method.is_default ? 'positive' : 'neutral',
+      }))
+    }
+
+    return [
+      { label: 'Name', value: payload.profile?.name || 'Not available' },
+      { label: 'Email', value: payload.profile?.email || 'Not available' },
+      { label: 'Phone', value: payload.profile?.phone || 'Not available' },
+      { label: 'Passport', value: payload.profile?.passport || 'Not available' },
+    ]
+  }
+
   if (section.slug === 'dashboard') {
     const stats = payload.dashboard?.stats || {}
     return [
@@ -454,6 +642,44 @@ function roundUpNice(value) {
   const step = base / 2
 
   return Math.ceil(value / step) * step
+}
+
+function buildTradingChartSeries(rawChart) {
+  const details = Array.isArray(rawChart?.details) ? rawChart.details : []
+
+  if (details.length) {
+    return details.map((entry, index) => {
+      const amount = Number(entry?.total_earning || 0)
+      const status = String(entry?.status || '').toLowerCase()
+      let cashedOut = 0
+      let stored = 0
+
+      if (status === 'cashed_out' || status === 'paid') {
+        cashedOut = amount
+      } else if (status === 'stored') {
+        stored = amount
+      } else {
+        stored = amount
+      }
+
+      return {
+        id: entry?.id || `trading-${index}`,
+        label: entry?.label || `M${index + 1}`,
+        cashedOut,
+        stored,
+      }
+    })
+  }
+
+  const labels = Array.isArray(rawChart?.labels) ? rawChart.labels : []
+  const earnings = Array.isArray(rawChart?.earnings) ? rawChart.earnings : []
+
+  return labels.map((label, index) => ({
+    id: `trading-${index}`,
+    label: label || `M${index + 1}`,
+    cashedOut: 0,
+    stored: Number(earnings[index] || 0),
+  }))
 }
 
 function buildMonthlyStatusSeries(rawChart) {
@@ -1063,6 +1289,173 @@ function SinglePeriodLineChartSection({
   )
 }
 
+function TradingChartSection({ chartQuery, onRetry, className = 'mt-6' }) {
+  const [hoveredPoint, setHoveredPoint] = useState(null)
+  const series = buildTradingChartSeries(chartQuery.data?.chart)
+  const totalCashedOut = series.reduce((sum, point) => sum + Number(point.cashedOut || 0), 0)
+  const totalStored = series.reduce((sum, point) => sum + Number(point.stored || 0), 0)
+  const maxValue = series.reduce((max, point) => Math.max(max, Number(point.cashedOut || 0), Number(point.stored || 0)), 0)
+  const yMax = roundUpNice(maxValue || 1)
+  const tickCount = 4
+  const chartWidth = 920
+  const chartHeight = 340
+  const paddingTop = 24
+  const paddingRight = 20
+  const paddingBottom = 56
+  const paddingLeft = 64
+  const plotWidth = chartWidth - paddingLeft - paddingRight
+  const plotHeight = chartHeight - paddingTop - paddingBottom
+  const groupWidth = series.length ? plotWidth / series.length : plotWidth
+  const groupGap = Math.max(4, Math.round(groupWidth * 0.1))
+  const barWidth = Math.min(36, Math.max(12, Math.round((groupWidth - groupGap - 8) / 2)))
+
+  const bars = series.map((point, index) => {
+    const groupX = paddingLeft + index * groupWidth
+    const cashValue = Number(point.cashedOut || 0)
+    const storeValue = Number(point.stored || 0)
+    const cashHeight = Math.max(0, Math.round((cashValue / yMax) * plotHeight))
+    const storeHeight = Math.max(0, Math.round((storeValue / yMax) * plotHeight))
+    const barGroupWidth = barWidth * 2 + groupGap
+    const startX = groupX + (groupWidth - barGroupWidth) / 2
+
+    return {
+      ...point,
+      cashX: Math.round(startX),
+      storeX: Math.round(startX + barWidth + groupGap),
+      cashY: paddingTop + plotHeight - cashHeight,
+      storeY: paddingTop + plotHeight - storeHeight,
+      cashHeight,
+      storeHeight,
+      centerX: Math.round(groupX + groupWidth / 2),
+    }
+  })
+
+  const yTicks = Array.from({ length: tickCount + 1 }, (_, index) => ({
+    value: yMax * (1 - index / tickCount),
+    y: Math.round(paddingTop + plotHeight * (index / tickCount)),
+  }))
+
+  const hoveredBar = hoveredPoint !== null ? bars[hoveredPoint.index] : null
+  const hoveredLabel = hoveredPoint?.series === 'cashout' ? 'Cashed Out' : 'Earnings'
+  const hoveredValue =
+    hoveredBar && hoveredPoint
+      ? hoveredPoint.series === 'cashout'
+        ? hoveredBar.cashedOut
+        : hoveredBar.stored
+      : 0
+
+  return (
+    <section className={className}>
+      <div className="rounded-[1.75rem] p-6 sm:p-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-[#2ABBAF]">Monthly Chart</p>
+            <h3 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">Trading periods performance</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">Monthly USD earnings from trading periods chart.</p>
+          </div>
+          <div className="portal-chip">
+            <FaChartLine className="text-[#2ABBAF]" />
+            Total {formatMoney(totalCashedOut + totalStored)}
+          </div>
+        </div>
+
+        {chartQuery.isLoading || chartQuery.isFetching ? (
+          <div className="portal-panel mt-6 rounded-[1.45rem] p-8 sm:p-10">
+            <div className="portal-loader" />
+            <p className="mt-5 text-sm text-slate-300">Loading trading chart.</p>
+          </div>
+        ) : null}
+
+        {!chartQuery.isLoading && !chartQuery.isFetching && chartQuery.error ? (
+          <div className="mt-6 rounded-[1.45rem] border border-red-400/30 bg-red-500/10 p-6">
+            <p className="text-sm text-red-200">{getQueryErrorMessage(chartQuery.error)}</p>
+            <button type="button" onClick={onRetry} className="portal-secondary-button mt-4">Retry chart</button>
+          </div>
+        ) : null}
+
+        {!chartQuery.isLoading && !chartQuery.isFetching && !chartQuery.error ? (
+          series.length ? (
+            <div className="relative mt-7 rounded-[1.3rem] border border-white/12 bg-[rgba(255,255,255,0.04)] p-3 sm:p-4">
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[320px] w-full">
+                {yTicks.map((tick) => (
+                  <g key={`trading-tick-${tick.y}`}>
+                    <line x1={paddingLeft} y1={tick.y} x2={paddingLeft + plotWidth} y2={tick.y} stroke="rgba(148,163,184,0.2)" strokeDasharray="4 6" />
+                    <text x={paddingLeft - 10} y={tick.y + 4} fill="#94a3b8" fontSize="11" textAnchor="end">{formatMoney(tick.value)}</text>
+                  </g>
+                ))}
+                {bars.map((bar, index) => (
+                  <g key={`trading-bar-${bar.id}`}>
+                    <rect x={bar.cashX} y={bar.cashY} width={barWidth} height={bar.cashHeight} rx="4" fill="#1D4ED8" opacity={hoveredPoint && (hoveredPoint.index !== index || hoveredPoint.series !== 'cashout') ? 0.35 : 1} onMouseEnter={() => setHoveredPoint({ index, series: 'cashout' })} onMouseLeave={() => setHoveredPoint(null)} />
+                    <rect x={bar.storeX} y={bar.storeY} width={barWidth} height={bar.storeHeight} rx="4" fill="#2ABBAF" opacity={hoveredPoint && (hoveredPoint.index !== index || hoveredPoint.series !== 'stored') ? 0.35 : 1} onMouseEnter={() => setHoveredPoint({ index, series: 'stored' })} onMouseLeave={() => setHoveredPoint(null)} />
+                  </g>
+                ))}
+                {bars.map((point) => (
+                  <text key={`trading-label-${point.id}`} x={point.centerX} y={paddingTop + plotHeight + 24} fill="#94a3b8" fontSize="11" textAnchor="middle">{String(point.label).slice(0, 10)}</text>
+                ))}
+              </svg>
+              {hoveredBar ? (
+                <div className="pointer-events-none absolute left-4 top-4 rounded-xl border border-[#7ad7cf]/45 bg-[#061d22]/92 px-3 py-2 shadow-[0_8px_24px_-10px_rgba(42,187,175,0.6)]">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#7ad7cf]">{hoveredBar.label}</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{hoveredLabel}: {formatMoney(hoveredValue)}</p>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mt-6">
+              <EmptyState title="No chart points yet." detail="Trading chart endpoint responded without series values." compact />
+            </div>
+          )
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+function TradingPeriodsTable({ periods }) {
+  const rows = Array.isArray(periods) ? periods.slice(0, 8) : []
+
+  return (
+    <section className="portal-panel rounded-[1.45rem] p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="portal-subtitle">Data Table</p>
+          <h3 className="mt-1 text-xl font-semibold text-white">Recent monthly periods</h3>
+        </div>
+        <span className="portal-chip">{rows.length} rows</span>
+      </div>
+
+      {rows.length ? (
+        <div className="portal-table-shell mt-4">
+          <table className="portal-data-table">
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th>Status</th>
+                <th>Decision</th>
+                <th>Earning</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((period) => (
+                <tr key={period.id}>
+                  <td>{period.period || `${formatDate(period.start_date)} - ${formatDate(period.end_date)}`}</td>
+                  <td><span className="portal-badge">{formatStatusLabel(period.status)}</span></td>
+                  <td>{period.client_decision || 'pending'}</td>
+                  <td>{formatMoney(period.total_earning)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <EmptyState title="No trading periods yet." detail="Monthly periods will appear once trading data is available." compact />
+        </div>
+      )}
+    </section>
+  )
+}
+
 function DashboardPeriodsTable({ periods }) {
   const token = useSelector(selectToken)
   const [downloadAllPeriodReports, { isLoading: allReportsLoading }] = useDownloadAllPeriodReportsMutation()
@@ -1475,9 +1868,9 @@ function MethodsView({ payload }) {
   )
 }
 
-function ProfileView({ payload, onOpenEditProfile }) {
+function ProfileView({ payload, onOpenEditProfile, profileMode = 'mining' }) {
   const profile = payload.profile
-  const contracts = payload.contracts || []
+  const contracts = profileMode === 'trading' ? [] : (payload.contracts || [])
 
   return (
     <div className="space-y-6">
@@ -1508,28 +1901,160 @@ function ProfileView({ payload, onOpenEditProfile }) {
           </div>
         </div>
 
+        {profileMode === 'mining' ? (
+          <div className="portal-panel rounded-[1.9rem] p-6 sm:p-8">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Mining Contracts</p>
+            <div className="mt-6 space-y-4">
+              {contracts.length ? (
+                contracts.map((contract) => (
+                  <div key={contract.id} className="portal-table-row">
+                    <div>
+                      <p className="font-semibold text-white">Contract #{contract.id}</p>
+                      <p className="mt-1 text-sm text-slate-400">{formatDate(contract.start_date)} to {formatDate(contract.end_date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-400">Amount</p>
+                      <p className="mt-1 font-semibold text-white">{formatMoney(contract.amount)}</p>
+                    </div>
+                    <a href={contract.file_url || '#'} target="_blank" rel="noreferrer" className="portal-inline-link">
+                      Open file
+                      <FaArrowRight />
+                    </a>
+                  </div>
+                ))
+              ) : (
+                <EmptyState title="No contracts returned yet." detail="Uploaded agreements will appear here with direct file links." />
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="portal-panel rounded-[1.9rem] p-6 sm:p-8">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Trading Contracts</p>
+            <p className="mt-4 text-sm leading-7 text-slate-300">
+              Trading agreements are managed in the Trading Contracts section. Switch to that tab to review active and expired trading contracts.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function TradingPeriodsView({ payload, onRequestCashout, onRequestStore, actionState }) {
+  const periods = payload.periods || []
+  const pendingPeriods = getPendingTradingPeriods(payload)
+
+  return (
+    <div className="space-y-6">
+      <div className="portal-panel rounded-[1.9rem] p-6 sm:p-4" style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Monthly Monitor</p>
+            <h3 className="mt-2 text-2xl font-semibold text-white">Trading periods</h3>
+          </div>
+          <div className="portal-chip"><FaClock className="text-[#2ABBAF]" />{pendingPeriods.length} ready for action</div>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          {periods.length ? (
+            periods.map((period) => {
+              const canAct = period.is_eligible_for_decision || String(period.status || '').toLowerCase() === 'completed'
+
+              return (
+                <div key={period.id} className="portal-table-row">
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {period.period || `${formatDate(period.start_date)} - ${formatDate(period.end_date)}`}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-400">
+                      Contract #{period.trading_contract_id || 'N/A'} · Decision: {period.client_decision || 'pending'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-400">Earning</p>
+                    <p className="mt-1 font-semibold text-white">{formatMoney(period.total_earning)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-400">Status</p>
+                    <p className="mt-1 font-semibold text-white">{formatStatusLabel(period.status)}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    {canAct ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onRequestCashout(period.id)}
+                          disabled={actionState.loading}
+                          className="portal-secondary-button"
+                        >
+                          {actionState.loading && actionState.type === 'cashout' && actionState.periodId === period.id ? 'Sending...' : 'Cashout'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onRequestStore(period.id)}
+                          disabled={actionState.loading}
+                          className="portal-secondary-button"
+                        >
+                          {actionState.loading && actionState.type === 'store' && actionState.periodId === period.id ? 'Sending...' : 'Store'}
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="portal-badge">{period.status || 'unknown'}</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            <EmptyState title="No trading periods returned yet." detail="Monthly trading cycles will appear here once available." />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TradingHistoryView({ payload }) {
+  const cashouts = payload.cashouts || []
+  const storedEarnings = payload.storedEarnings || []
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard label="Cashouts" value={String(payload.cashoutsMeta?.total || cashouts.length || 0)} tone="accent" />
+        <StatCard label="Stored Records" value={String(payload.storedMeta?.total || storedEarnings.length || 0)} />
+        <StatCard label="Stored Balance" value={formatMoney(payload.storedMeta?.stored_balance)} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
         <div className="portal-panel rounded-[1.9rem] p-6 sm:p-8">
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Contracts</p>
-          <div className="mt-6 space-y-4">
-            {contracts.length ? (
-              contracts.map((contract) => (
-                <div key={contract.id} className="portal-table-row">
-                  <div>
-                    <p className="font-semibold text-white">Contract #{contract.id}</p>
-                    <p className="mt-1 text-sm text-slate-400">{formatDate(contract.start_date)} to {formatDate(contract.end_date)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-400">Amount</p>
-                    <p className="mt-1 font-semibold text-white">{formatMoney(contract.amount)}</p>
-                  </div>
-                  <a href={contract.file_url || '#'} target="_blank" rel="noreferrer" className="portal-inline-link">
-                    Open file
-                    <FaArrowRight />
-                  </a>
+          <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Trading Cashouts</p>
+          <div className="mt-5 space-y-4">
+            {cashouts.length ? (
+              cashouts.map((cashout) => (
+                <div key={cashout.id} className="portal-list-row">
+                  <span>{formatDate(cashout.date)}</span>
+                  <strong>{formatMoney(cashout.amount)}</strong>
                 </div>
               ))
             ) : (
-              <EmptyState title="No contracts returned yet." detail="Uploaded agreements will appear here with direct file links." />
+              <EmptyState title="No trading cashouts yet." detail="Processed payouts will be listed here." compact />
+            )}
+          </div>
+        </div>
+
+        <div className="portal-panel rounded-[1.9rem] p-6 sm:p-8">
+          <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Stored Earnings</p>
+          <div className="mt-5 space-y-4">
+            {storedEarnings.length ? (
+              storedEarnings.map((entry) => (
+                <div key={entry.id} className="portal-list-row">
+                  <span>{formatDateTime(entry.stored_at || entry.created_at)}</span>
+                  <strong>{formatMoney(entry.amount)}</strong>
+                </div>
+              ))
+            ) : (
+              <EmptyState title="No stored trading earnings yet." detail="Stored monthly earnings will appear here." compact />
             )}
           </div>
         </div>
@@ -1538,7 +2063,91 @@ function ProfileView({ payload, onOpenEditProfile }) {
   )
 }
 
-function ContentRenderer({ section, payload, onRequestCashout, onRequestStore, actionState, onOpenEditProfile }) {
+function TradingContractsView({ payload }) {
+  const contracts = payload.contracts || []
+
+  return (
+    <div className="space-y-6">
+      <div className="portal-panel rounded-[1.9rem] p-6 sm:p-4">
+        <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Trading Agreements</p>
+        <div className="mt-6 space-y-4">
+          {contracts.length ? (
+            contracts.map((contract) => (
+              <div key={contract.id} className="portal-table-row">
+                <div>
+                  <p className="font-semibold text-white">{contract.period_label || `Contract #${contract.id}`}</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {formatDate(contract.start_date)} to {formatDate(contract.end_date)} · ROI {contract.roi_percent ?? 0}%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-400">Amount</p>
+                  <p className="mt-1 font-semibold text-white">{formatMoney(contract.amount)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-400">Earning</p>
+                  <p className="mt-1 font-semibold text-white">{formatMoney(contract.earning)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span className="portal-badge">{contract.status || 'unknown'}</span>
+                  {contract.file_url ? (
+                    <a href={contract.file_url} target="_blank" rel="noreferrer" className="portal-inline-link">
+                      Open file
+                      <FaArrowRight />
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ))
+          ) : (
+            <EmptyState title="No trading contracts returned yet." detail="Active and expired trading agreements will appear here." />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ContentRenderer({
+  module,
+  section,
+  payload,
+  onRequestCashout,
+  onRequestStore,
+  actionState,
+  onOpenEditProfile,
+}) {
+  if (module === 'trading') {
+    if (section.slug === 'periods') {
+      return (
+        <TradingPeriodsView
+          payload={payload}
+          onRequestCashout={onRequestCashout}
+          onRequestStore={onRequestStore}
+          actionState={actionState}
+        />
+      )
+    }
+
+    if (section.slug === 'contracts') {
+      return <TradingContractsView payload={payload} />
+    }
+
+    if (section.slug === 'history') {
+      return <TradingHistoryView payload={payload} />
+    }
+
+    if (section.slug === 'methods') {
+      return <MethodsView payload={payload} />
+    }
+
+    if (section.slug === 'profile') {
+      return <ProfileView payload={payload} onOpenEditProfile={onOpenEditProfile} profileMode="trading" />
+    }
+
+    return null
+  }
+
   if (section.slug === 'dashboard') {
     return <DashboardView payload={payload} />
   }
@@ -1562,7 +2171,7 @@ function ContentRenderer({ section, payload, onRequestCashout, onRequestStore, a
     return <MethodsView payload={payload} />
   }
 
-  return <ProfileView payload={payload} onOpenEditProfile={onOpenEditProfile} />
+  return <ProfileView payload={payload} onOpenEditProfile={onOpenEditProfile} profileMode="mining" />
 }
 
 function getQueryErrorMessage(error) {
@@ -1601,16 +2210,27 @@ function ClientPortalPage() {
   const dispatch = useDispatch()
   const user = useSelector(selectUser)
   const token = useSelector(selectToken)
-  const activeSection = resolveSection(location.pathname)
+  const [activeModule, setActiveModule] = useState('mining')
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const portalSections = getPortalSections(activeModule)
+  const activeSection = resolveSection(location.pathname, activeModule)
+  const isMiningModule = activeModule === 'mining'
+  const isTradingModule = activeModule === 'trading'
   const [logoutRequest] = useLogoutMutation()
   const [changePasswordRequest] = useChangePasswordMutation()
   const [createPortalCashoutDetails] = useCreatePortalCashoutDetailsMutation()
   const [requestPeriodCashout] = useRequestPeriodCashoutMutation()
   const [requestPeriodStore] = useRequestPeriodStoreMutation()
+  const [requestTradingCashout] = useRequestTradingCashoutMutation()
+  const [requestTradingStore] = useRequestTradingStoreMutation()
   const [updatePortalProfile] = useUpdatePortalProfileMutation()
   const [periodActionState, setPeriodActionState] = useState({ loading: false, type: '', periodId: null })
   const [periodStatusOverrides, setPeriodStatusOverrides] = useState({})
+  const [tradingPeriodStatusOverrides, setTradingPeriodStatusOverrides] = useState({})
   const [periodActionError, setPeriodActionError] = useState('')
+  const [isTradingCashoutModalOpen, setIsTradingCashoutModalOpen] = useState(false)
+  const [tradingCashoutPeriodId, setTradingCashoutPeriodId] = useState(null)
+  const [selectedCashoutDetailsId, setSelectedCashoutDetailsId] = useState('')
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [passwordSubmitting, setPasswordSubmitting] = useState(false)
   const [passwordError, setPasswordError] = useState('')
@@ -1633,10 +2253,66 @@ function ClientPortalPage() {
     password_confirmation: false,
   })
   const [selectedPeriodId, setSelectedPeriodId] = useState(null)
-  const dashboardQuery = useGetPortalDashboardQuery(undefined, { skip: activeSection.slug !== 'dashboard' })
-  const periodsChartQuery = useGetPortalPeriodsChartQuery(undefined, { skip: activeSection.slug !== 'dashboard' || !token })
+
+  useEffect(() => {
+    if (activeModule === 'mining' && activeSection.slug === 'contracts') {
+      navigate('/portal/dashboard', { replace: true })
+    }
+  }, [activeModule, activeSection.slug, navigate])
+
+  useEffect(() => {
+    setIsMobileSidebarOpen(false)
+  }, [location.pathname, activeModule])
+
+  useEffect(() => {
+    if (!isMobileSidebarOpen) {
+      return undefined
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsMobileSidebarOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isMobileSidebarOpen])
+
+  const dashboardQuery = useGetPortalDashboardQuery(undefined, {
+    skip: !isMiningModule || activeSection.slug !== 'dashboard',
+  })
+  const periodsChartQuery = useGetPortalPeriodsChartQuery(undefined, {
+    skip: !isMiningModule || activeSection.slug !== 'dashboard' || !token,
+  })
   const dashboardPeriodsQuery = useGetPortalPeriodsQuery(undefined, {
-    skip: activeSection.slug !== 'dashboard' || !token,
+    skip: !isMiningModule || activeSection.slug !== 'dashboard' || !token,
+  })
+  const tradingContractsQuery = useGetTradingContractsQuery(
+    { status: 'active' },
+    { skip: !isTradingModule || !['dashboard', 'contracts'].includes(activeSection.slug) }
+  )
+  const tradingContractsAllQuery = useGetTradingContractsQuery(undefined, {
+    skip: !isTradingModule || activeSection.slug !== 'contracts',
+  })
+  const tradingPeriodsQuery = useGetTradingPeriodsQuery(undefined, {
+    skip: !isTradingModule || !['dashboard', 'periods'].includes(activeSection.slug),
+  })
+  const tradingChartQuery = useGetTradingPeriodsChartQuery(undefined, {
+    skip: !isTradingModule || activeSection.slug !== 'dashboard',
+  })
+  const tradingBalanceQuery = useGetTradingStoredBalanceQuery(undefined, {
+    skip: !isTradingModule || !['dashboard', 'periods'].includes(activeSection.slug),
+  })
+  const tradingHistoryQuery = useGetTradingHistoryQuery(undefined, {
+    skip: !isTradingModule || activeSection.slug !== 'history',
   })
   const defaultPeriodId = useMemo(
     () =>
@@ -1691,14 +2367,93 @@ function ClientPortalPage() {
   }, [defaultPeriodId, periodOptions, selectedPeriodId])
 
   const singlePeriodChartQuery = useGetPortalSinglePeriodChartQuery(selectedPeriodId, {
-    skip: activeSection.slug !== 'dashboard' || !token || !selectedPeriodId,
+    skip: !isMiningModule || activeSection.slug !== 'dashboard' || !token || !selectedPeriodId,
   })
-  const periodsQuery = useGetPortalPeriodsQuery(undefined, { skip: activeSection.slug !== 'periods' })
-  const historyQuery = useGetPortalHistoryQuery(undefined, { skip: activeSection.slug !== 'history' })
-  const methodsQuery = useGetPortalMethodsQuery(undefined, { skip: activeSection.slug !== 'methods' })
+  const periodsQuery = useGetPortalPeriodsQuery(undefined, {
+    skip: !isMiningModule || activeSection.slug !== 'periods',
+  })
+  const historyQuery = useGetPortalHistoryQuery(undefined, {
+    skip: !isMiningModule || activeSection.slug !== 'history',
+  })
+  const methodsQuery = useGetPortalMethodsQuery(undefined, {
+    skip:
+      activeSection.slug !== 'methods' &&
+      !(isTradingModule && ['periods', 'dashboard'].includes(activeSection.slug)) &&
+      !isTradingCashoutModalOpen,
+  })
   const profileQuery = useGetPortalProfileQuery(undefined, { skip: activeSection.slug !== 'profile' })
 
+  const tradingPeriodOptions = useMemo(() => {
+    const rows = Array.isArray(tradingPeriodsQuery.data?.periods) ? tradingPeriodsQuery.data.periods : []
+
+    return [...rows].sort((a, b) => {
+      const aStamp = new Date(a?.end_date || a?.start_date || 0).getTime()
+      const bStamp = new Date(b?.end_date || b?.start_date || 0).getTime()
+      if (bStamp !== aStamp) {
+        return bStamp - aStamp
+      }
+
+      return Number(b?.id || 0) - Number(a?.id || 0)
+    })
+  }, [tradingPeriodsQuery.data?.periods])
+
   const activeQuery = useMemo(() => {
+    if (isTradingModule) {
+      if (activeSection.slug === 'dashboard') {
+        return {
+          data: {
+            contracts: tradingContractsQuery.data?.contracts || [],
+            periods: tradingPeriodsQuery.data?.periods || [],
+            pendingPeriods: tradingPeriodsQuery.data?.pendingPeriods || [],
+            periodsMeta: tradingPeriodsQuery.data?.periodsMeta || null,
+            chart: tradingChartQuery.data?.chart || {},
+            storedBalance: tradingBalanceQuery.data?.storedBalance ?? 0,
+          },
+          isLoading:
+            tradingContractsQuery.isLoading ||
+            tradingPeriodsQuery.isLoading ||
+            tradingChartQuery.isLoading ||
+            tradingBalanceQuery.isLoading,
+          isFetching:
+            tradingContractsQuery.isFetching ||
+            tradingPeriodsQuery.isFetching ||
+            tradingChartQuery.isFetching ||
+            tradingBalanceQuery.isFetching,
+          error:
+            tradingContractsQuery.error ||
+            tradingPeriodsQuery.error ||
+            tradingChartQuery.error ||
+            tradingBalanceQuery.error,
+        }
+      }
+
+      if (activeSection.slug === 'periods') {
+        return {
+          data: {
+            ...(tradingPeriodsQuery.data || {}),
+            storedBalance: tradingBalanceQuery.data?.storedBalance ?? 0,
+          },
+          isLoading: tradingPeriodsQuery.isLoading || tradingBalanceQuery.isLoading,
+          isFetching: tradingPeriodsQuery.isFetching || tradingBalanceQuery.isFetching,
+          error: tradingPeriodsQuery.error || tradingBalanceQuery.error,
+        }
+      }
+
+      if (activeSection.slug === 'contracts') {
+        return tradingContractsAllQuery
+      }
+
+      if (activeSection.slug === 'history') {
+        return tradingHistoryQuery
+      }
+
+      if (activeSection.slug === 'methods') {
+        return methodsQuery
+      }
+
+      return profileQuery
+    }
+
     if (activeSection.slug === 'dashboard') {
       return dashboardQuery
     }
@@ -1716,12 +2471,28 @@ function ClientPortalPage() {
     }
 
     return profileQuery
-  }, [activeSection.slug, dashboardQuery, historyQuery, methodsQuery, periodsQuery, profileQuery])
+  }, [
+    activeSection.slug,
+    dashboardQuery,
+    historyQuery,
+    isTradingModule,
+    methodsQuery,
+    periodsQuery,
+    profileQuery,
+    tradingBalanceQuery,
+    tradingChartQuery,
+    tradingContractsAllQuery,
+    tradingContractsQuery,
+    tradingHistoryQuery,
+    tradingPeriodsQuery,
+  ])
 
   const payload = activeQuery.data || {}
   const loading = activeQuery.isLoading || activeQuery.isFetching
   const error = activeQuery.error ? getQueryErrorMessage(activeQuery.error) : ''
   const payloadWithPeriodOverrides = useMemo(() => {
+    const overrides = isTradingModule ? tradingPeriodStatusOverrides : periodStatusOverrides
+
     if (!payload.periods?.length) {
       return payload
     }
@@ -1729,7 +2500,7 @@ function ClientPortalPage() {
     return {
       ...payload,
       periods: payload.periods.map((period) => {
-        const overrideStatus = periodStatusOverrides[period.id]
+        const overrideStatus = overrides[period.id]
         if (!overrideStatus) {
           return period
         }
@@ -1740,15 +2511,44 @@ function ClientPortalPage() {
         }
       }),
     }
-  }, [payload, periodStatusOverrides])
-  const overviewCards = getOverviewCards(activeSection, payload, user)
-  const insightRows = getInsightRows(activeSection, payloadWithPeriodOverrides, user)
+  }, [isTradingModule, payload, periodStatusOverrides, tradingPeriodStatusOverrides])
+  const overviewCards = getOverviewCards(activeModule, activeSection, payload, user)
+  const insightRows = getInsightRows(activeModule, activeSection, payloadWithPeriodOverrides, user)
 
-  async function handleRequestCashout(periodId) {
-    if (!periodId || !token || periodActionState.loading) {
+  function handleModuleChange(nextModule) {
+    if (nextModule === activeModule) {
       return
     }
 
+    setActiveModule(nextModule)
+    setPeriodActionError('')
+
+    if (nextModule === 'mining' && activeSection.slug === 'contracts') {
+      navigate('/portal/dashboard', { replace: true })
+    }
+  }
+
+  function handleRequestCashout(periodId) {
+    if (!periodId || periodActionState.loading) {
+      return
+    }
+
+    if (isTradingModule) {
+      setPeriodActionError('')
+      setTradingCashoutPeriodId(periodId)
+      setSelectedCashoutDetailsId('')
+      setIsTradingCashoutModalOpen(true)
+      return
+    }
+
+    if (!token) {
+      return
+    }
+
+    submitMiningCashout(periodId)
+  }
+
+  async function submitMiningCashout(periodId) {
     setPeriodActionError('')
     setPeriodActionState({ loading: true, type: 'cashout', periodId })
 
@@ -1763,8 +2563,37 @@ function ClientPortalPage() {
     }
   }
 
+  async function submitTradingCashout(event) {
+    event.preventDefault()
+
+    if (!tradingCashoutPeriodId || periodActionState.loading) {
+      return
+    }
+
+    setPeriodActionError('')
+    setPeriodActionState({ loading: true, type: 'cashout', periodId: tradingCashoutPeriodId })
+
+    try {
+      const parsedCashoutDetailsId = Number(selectedCashoutDetailsId)
+      await requestTradingCashout({
+        trading_period_id: tradingCashoutPeriodId,
+        cashout_details_id: Number.isFinite(parsedCashoutDetailsId) && parsedCashoutDetailsId > 0
+          ? parsedCashoutDetailsId
+          : undefined,
+      }).unwrap()
+      setTradingPeriodStatusOverrides((prev) => ({ ...prev, [tradingCashoutPeriodId]: 'request_pending' }))
+      tradingPeriodsQuery.refetch()
+      setIsTradingCashoutModalOpen(false)
+      setTradingCashoutPeriodId(null)
+    } catch (requestError) {
+      setPeriodActionError(getQueryErrorMessage(requestError))
+    } finally {
+      setPeriodActionState({ loading: false, type: '', periodId: null })
+    }
+  }
+
   async function handleRequestStore(periodId) {
-    if (!periodId || !token || periodActionState.loading) {
+    if (!periodId || periodActionState.loading) {
       return
     }
 
@@ -1772,9 +2601,20 @@ function ClientPortalPage() {
     setPeriodActionState({ loading: true, type: 'store', periodId })
 
     try {
-      await requestPeriodStore({ earning_period_id: periodId, token }).unwrap()
-      setPeriodStatusOverrides((prev) => ({ ...prev, [periodId]: 'stored' }))
-      periodsQuery.refetch()
+      if (isTradingModule) {
+        await requestTradingStore({ trading_period_id: periodId }).unwrap()
+        setTradingPeriodStatusOverrides((prev) => ({ ...prev, [periodId]: 'request_pending' }))
+        tradingPeriodsQuery.refetch()
+      } else {
+        if (!token) {
+          setPeriodActionState({ loading: false, type: '', periodId: null })
+          return
+        }
+
+        await requestPeriodStore({ earning_period_id: periodId, token }).unwrap()
+        setPeriodStatusOverrides((prev) => ({ ...prev, [periodId]: 'stored' }))
+        periodsQuery.refetch()
+      }
     } catch (requestError) {
       setPeriodActionError(getQueryErrorMessage(requestError))
     } finally {
@@ -2024,31 +2864,34 @@ function ClientPortalPage() {
   }
 
   return (
-    <div className="portal-theme min-h-screen overflow-x-hidden bg-grid text-slate-100">
-      <Header />
+    <div className={`portal-theme min-h-screen bg-grid text-slate-100 ${isMobileSidebarOpen ? 'portal-mobile-nav-open' : 'overflow-x-hidden'}`}>
+      <Header portalActiveModule={activeModule} onPortalModuleChange={handleModuleChange} />
       <div className="portal-backdrop-glow" />
 
-      <main className="relative z-10 w-full p-0 pt-20">
-        <section className="portal-shell">
-          <aside className="portal-sidebar">
-            {/* <div className="portal-sidebar-brand">
-              <Link to="/" className="relative inline-flex h-12 w-44 items-center">
-                <img src={brandLogo} alt="OVERXBIT" className="pointer-events-none absolute left-0 top-1/2 h-28 w-48 -translate-y-1/2 select-none" />
-              </Link>
-            </div> */}
+      {isMobileSidebarOpen ? (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="portal-sidebar-backdrop"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      ) : null}
 
-            {/* <div className="portal-sidebar-profile">
-              <div className="portal-avatar-ring">
-                <span>{(user?.name || 'O').slice(0, 1).toUpperCase()}</span>
-              </div>
+      <div className="portal-layout">
+        <aside className={`portal-sidebar ${isMobileSidebarOpen ? 'is-open' : ''}`}>
+          <div className="mb-4 hidden max-[1080px]:flex items-center justify-between border-b border-white/10 pb-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Portal Menu</p>
+            <button
+              type="button"
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="portal-secondary-button !px-3 !py-2"
+              aria-label="Close menu"
+            >
+              <FaXmark />
+            </button>
+          </div>
 
-              <div>
-                <p className="text-sm font-semibold text-white">{user?.client?.name || user?.name || 'OverXBit Client'}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-500">Private portal access</p>
-              </div>
-            </div> */}
-
-            <nav className="mt-8 space-y-2">
+          <nav id="portal-sidebar-nav" className="mt-8 space-y-2 max-[1080px]:mt-0">
               {portalSections.map((section) => {
                 const Icon = section.icon
 
@@ -2056,6 +2899,7 @@ function ClientPortalPage() {
                   <NavLink
                     key={section.slug}
                     to={`/portal/${section.slug}`}
+                    onClick={() => setIsMobileSidebarOpen(false)}
                     className={({ isActive }) => `portal-nav-item rounded-2xl ${isActive ? 'portal-nav-item-active' : ''}`}
                   >
                     <span className="portal-nav-icon rounded-full"><Icon /></span>
@@ -2068,11 +2912,24 @@ function ClientPortalPage() {
                 )
               })}
             </nav>
-          </aside>
+        </aside>
 
-          <section className="portal-main p-3 sm:p-4">
+        <main className="portal-page-main relative z-10 w-full min-w-0 p-0 pt-20">
+          <section className="portal-shell">
+            <section className="portal-main p-3 sm:p-4">
+            <button
+              type="button"
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="portal-secondary-button mb-4 hidden max-[1080px]:inline-flex"
+              aria-expanded={isMobileSidebarOpen}
+              aria-controls="portal-sidebar-nav"
+            >
+              <FaBars />
+              Menu
+            </button>
+
             <header className="portal-topbar">
-              <div>
+              <div className="min-w-0">
                 <p className="portal-subtitle">{activeSection.slug}</p>
                 <h1 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">{activeSection.title}</h1>
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">{activeSection.description}</p>
@@ -2089,7 +2946,7 @@ function ClientPortalPage() {
               ))}
             </section>
 
-            {activeSection.slug === 'dashboard' ? (
+            {activeSection.slug === 'dashboard' && isMiningModule ? (
               <section className="mt-6 grid gap-6">
                 <DashboardChartSection
                   className="min-w-0"
@@ -2105,6 +2962,35 @@ function ClientPortalPage() {
                   onRetry={() => singlePeriodChartQuery.refetch()}
                 />
                 <DashboardPeriodsTable periods={periodOptions} />
+              </section>
+            ) : activeSection.slug === 'dashboard' && isTradingModule ? (
+              <section className="mt-6 grid gap-6">
+                {loading ? (
+                  <div className="portal-panel rounded-[1.45rem] p-8 sm:p-10">
+                    <div className="portal-loader" />
+                    <p className="mt-5 text-sm text-slate-300">Loading trading dashboard.</p>
+                  </div>
+                ) : null}
+                {!loading && error ? (
+                  <div className="rounded-[1.45rem] border border-red-400/30 bg-red-500/10 p-6">
+                    <EmptyState title="Trading dashboard could not be loaded." detail={error} />
+                  </div>
+                ) : null}
+                {!loading && !error ? (
+                  <>
+                    <TradingChartSection
+                      className="min-w-0"
+                      chartQuery={tradingChartQuery}
+                      onRetry={() => {
+                        tradingChartQuery.refetch()
+                        tradingPeriodsQuery.refetch()
+                        tradingContractsQuery.refetch()
+                        tradingBalanceQuery.refetch()
+                      }}
+                    />
+                    <TradingPeriodsTable periods={tradingPeriodOptions} />
+                  </>
+                ) : null}
               </section>
             ) : (
               <section className="portal-panel mt-6 overflow-hidden rounded-[1.75rem]" style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
@@ -2139,7 +3025,7 @@ function ClientPortalPage() {
                 </div>
 
                 <div className="p-6 sm:p-8">
-                  {activeSection.slug === 'periods' && periodActionError ? (
+                  {['periods'].includes(activeSection.slug) && periodActionError ? (
                     <div className="mb-4 rounded-[1.2rem] border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                       {periodActionError}
                     </div>
@@ -2161,6 +3047,7 @@ function ClientPortalPage() {
                   {!loading && !error ? (
                     <div className="rounded-[1.45rem] p-4 sm:p-5">
                       <ContentRenderer
+                        module={activeModule}
                         section={activeSection}
                         payload={payloadWithPeriodOverrides}
                         onRequestCashout={handleRequestCashout}
@@ -2173,9 +3060,60 @@ function ClientPortalPage() {
                 </div>
               </section>
             )}
+            </section>
           </section>
-        </section>
-      </main>
+        </main>
+      </div>
+
+      {isTradingCashoutModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/88 p-4">
+          <div className="w-full max-w-md rounded-[1.2rem] border border-[#3b82f6]/35 bg-[#0a1326] p-6 shadow-[0_24px_90px_-46px_rgba(59,130,246,0.68)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-[#60a5fa]">Trading Cashout</p>
+                <h3 className="mt-2 text-xl font-semibold text-white">Choose payout method</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (periodActionState.loading) return
+                  setIsTradingCashoutModalOpen(false)
+                  setTradingCashoutPeriodId(null)
+                }}
+                className="portal-secondary-button"
+                disabled={periodActionState.loading}
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={submitTradingCashout} className="mt-6 space-y-4">
+              <div>
+                <label htmlFor="trading_cashout_method" className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">
+                  Cashout Method
+                </label>
+                <select
+                  id="trading_cashout_method"
+                  value={selectedCashoutDetailsId}
+                  onChange={(event) => setSelectedCashoutDetailsId(event.target.value)}
+                  className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
+                >
+                  <option value="">Use default method</option>
+                  {(methodsQuery.data?.methods || []).map((method) => (
+                    <option key={method.id} value={method.id}>
+                      {method.label || `Method #${method.id}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button type="submit" className="portal-secondary-button w-full justify-center" disabled={periodActionState.loading}>
+                {periodActionState.loading ? 'Sending...' : 'Confirm Cashout'}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {isCashoutDetailsModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/88 p-4">

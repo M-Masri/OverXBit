@@ -17,6 +17,7 @@ import {
   FaWallet,
 } from 'react-icons/fa6'
 import Header from '../section/Header'
+import PageHero from '../section/PageHero'
 import SiteFooter from '../section/SiteFooter'
 import { getInViewMotion, revealVariants } from '../lib/motion'
 
@@ -189,34 +190,28 @@ function InvestmentPlanPage() {
     <div className="min-h-screen overflow-x-hidden overflow-y-hidden bg-grid text-slate-100">
       <Header />
 
-      <motion.section className="relative w-full overflow-x-clip overflow-y-hidden" variants={revealVariants} {...inViewMotion}>
-        <div className="absolute inset-0">
-          <img src="/assets/hero-static.webp" alt="" className="h-full w-full object-cover opacity-30" loading="eager" />
-        </div>
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(110%_90%_at_50%_40%,rgba(112,169,220,0.2)_0%,rgba(10,20,44,0.82)_48%,rgba(5,10,24,0.96)_100%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(5,10,24,0.92)_0%,rgba(6,14,34,0.72)_55%,rgba(5,10,24,0.94)_100%)]" />
+      <PageHero
+        eyebrow="INVESTMENT PLAN"
+        title="Choose Your Bitcoin"
+        titleHighlight="Mining Investment Plan."
+        description="Start your monthly mining journey by joining a shared Bitcoin mining pool. Subscribe to a plan, track your active period, and decide at the end whether to withdraw your earnings or store them for future growth."
+      >
+        <a
+          href="#plans"
+          className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#70A9DC] to-[#3D6FA8] px-7 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(61,111,168,0.5)] transition hover:brightness-110"
+        >
+          View Plans
+          <FaArrowRight className="text-xs" />
+        </a>
+        <a
+          href="#how-it-works"
+          className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-7 py-3 text-sm font-semibold text-white transition hover:border-[#70A9DC]/70 hover:bg-white/10"
+        >
+          How It Works
+        </a>
+      </PageHero>
 
-        <div className="relative z-10 mx-auto flex h-[550px] w-full max-w-7xl flex-col items-center justify-center px-5 pb-16 pt-28 text-center sm:px-8 sm:pb-20 sm:pt-32">
-          <p className="text-xs uppercase tracking-[0.24em] text-[#8EC3EF]">INVESTMENT PLAN</p>
-          <h1 className="mt-3 font-display text-4xl leading-tight text-white sm:text-5xl">Choose Your Bitcoin Mining Investment Plan</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-            Start your monthly mining journey by joining a shared Bitcoin mining pool. Subscribe to a plan, track your active period,
-            and decide at the end whether to withdraw your earnings or store them for future growth.
-          </p>
-
-          <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <a href="#plans" className="inline-flex items-center gap-2 rounded-full border border-[#70A9DC]/45 bg-white/5 px-6 py-2.5 text-sm font-semibold text-white transition hover:border-[#70A9DC]/70 hover:bg-white/10">
-              View Plans
-              <FaArrowRight className="text-xs" />
-            </a>
-            <a href="#how-it-works" className="inline-flex items-center gap-2 rounded-full border border-[#70A9DC]/45 bg-white/5 px-6 py-2.5 text-sm font-semibold text-white transition hover:border-[#70A9DC]/70 hover:bg-white/10">
-              How It Works
-            </a>
-          </div>
-        </div>
-      </motion.section>
-
-      <main className="mx-auto w-full max-w-7xl overflow-x-clip px-5 pb-16 pt-12 -mt-12 sm:px-8 sm:pt-14">
+      <main className="mx-auto w-full max-w-7xl overflow-x-clip px-5 pb-16 pt-12 sm:px-8 sm:pt-14">
 
         <section id="how-it-works" className="mt-14 rounded-[1.7rem] p-6 sm:p-8">
           <Eyebrow>How It Works</Eyebrow>

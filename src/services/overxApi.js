@@ -56,7 +56,21 @@ function unwrapResult(result) {
 export const overxApi = createApi({
   reducerPath: 'overxApi',
   baseQuery,
-  tagTypes: ['Auth', 'Dashboard', 'Periods', 'History', 'Methods', 'Profile', 'Chart', 'Services'],
+  tagTypes: [
+    'Auth',
+    'Dashboard',
+    'Periods',
+    'History',
+    'Methods',
+    'Profile',
+    'Chart',
+    'Services',
+    'TradingDashboard',
+    'TradingPeriods',
+    'TradingHistory',
+    'TradingContracts',
+    'TradingChart',
+  ],
   endpoints: (builder) => ({
     getPublicServices: builder.query({
       query: () => '/services',
@@ -288,6 +302,130 @@ export const overxApi = createApi({
       }),
       invalidatesTags: ['Profile', 'Dashboard'],
     }),
+    getTradingContracts: builder.query({
+      query: (params = {}) => ({
+        url: '/client/trading-contracts',
+        params,
+      }),
+      transformResponse: (response) => ({
+        contracts: response?.data || [],
+        contractsMeta: response?.meta || null,
+      }),
+      providesTags: ['TradingContracts'],
+    }),
+    getTradingContractById: builder.query({
+      query: (contractId) => `/client/trading-contracts/${contractId}`,
+      transformResponse: (response) => ({
+        contract: response?.data || null,
+      }),
+      providesTags: (_result, _error, contractId) => [{ type: 'TradingContracts', id: String(contractId) }],
+    }),
+    getTradingEarnings: builder.query({
+      query: (params = {}) => ({
+        url: '/client/trading-earnings',
+        params,
+      }),
+      transformResponse: (response) => ({
+        earnings: response?.data || [],
+        earningsMeta: response?.meta || null,
+      }),
+      providesTags: ['TradingContracts'],
+    }),
+    getTradingPeriods: builder.query({
+      async queryFn(params = {}, _api, _extraOptions, fetchWithBQ) {
+        const queryString = new URLSearchParams(
+          Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '')
+        ).toString()
+        const periodsPath = queryString ? `/client/trading-periods?${queryString}` : '/client/trading-periods'
+        const [periodsResult, pendingResult] = await Promise.all([
+          fetchWithBQ(periodsPath),
+          fetchWithBQ('/client/trading-periods/pending'),
+        ])
+
+        const periods = unwrapResult(periodsResult)
+        if (periods.error) {
+          return { error: periods.error }
+        }
+
+        const pending = unwrapResult(pendingResult)
+        if (pending.error) {
+          return { error: pending.error }
+        }
+
+        return {
+          data: {
+            periods: periods.data?.data || [],
+            periodsMeta: periods.data?.meta || null,
+            pendingPeriods: pending.data?.data || [],
+          },
+        }
+      },
+      providesTags: ['TradingPeriods'],
+    }),
+    getTradingPeriodById: builder.query({
+      query: (periodId) => `/client/trading-periods/${periodId}`,
+      transformResponse: (response) => ({
+        period: response?.data || null,
+      }),
+      providesTags: (_result, _error, periodId) => [{ type: 'TradingPeriods', id: String(periodId) }],
+    }),
+    getTradingPeriodsChart: builder.query({
+      query: () => '/client/trading-periods/chart',
+      transformResponse: (response) => ({
+        chart: response?.data || {},
+      }),
+      providesTags: ['TradingChart'],
+    }),
+    getTradingStoredBalance: builder.query({
+      query: () => '/client/trading-stored-balance',
+      transformResponse: (response) => ({
+        storedBalance: response?.data?.stored_balance ?? 0,
+      }),
+      providesTags: ['TradingDashboard'],
+    }),
+    getTradingHistory: builder.query({
+      async queryFn(_arg, _api, _extraOptions, fetchWithBQ) {
+        const [cashoutsResult, storedResult] = await Promise.all([
+          fetchWithBQ('/client/trading-cashouts'),
+          fetchWithBQ('/client/trading-stored-earnings'),
+        ])
+
+        const cashouts = unwrapResult(cashoutsResult)
+        if (cashouts.error) {
+          return { error: cashouts.error }
+        }
+
+        const stored = unwrapResult(storedResult)
+        if (stored.error) {
+          return { error: stored.error }
+        }
+
+        return {
+          data: {
+            cashouts: cashouts.data?.data || [],
+            cashoutsMeta: cashouts.data?.meta || null,
+            storedEarnings: stored.data?.data || [],
+            storedMeta: stored.data?.meta || null,
+          },
+        }
+      },
+      providesTags: ['TradingHistory'],
+    }),
+    requestTradingCashout: builder.mutation({
+      query: ({ trading_period_id, cashout_details_id }) => ({
+        url: `/client/trading-periods/${trading_period_id}/request-cashout`,
+        method: 'POST',
+        body: cashout_details_id ? { cashout_details_id } : {},
+      }),
+      invalidatesTags: ['TradingPeriods', 'TradingDashboard', 'TradingHistory', 'TradingChart'],
+    }),
+    requestTradingStore: builder.mutation({
+      query: ({ trading_period_id }) => ({
+        url: `/client/trading-periods/${trading_period_id}/request-store`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['TradingPeriods', 'TradingDashboard', 'TradingHistory', 'TradingChart'],
+    }),
   }),
 })
 
@@ -312,4 +450,14 @@ export const {
   useRequestPeriodCashoutMutation,
   useRequestPeriodStoreMutation,
   useUpdatePortalProfileMutation,
+  useGetTradingContractsQuery,
+  useGetTradingContractByIdQuery,
+  useGetTradingEarningsQuery,
+  useGetTradingPeriodsQuery,
+  useGetTradingPeriodByIdQuery,
+  useGetTradingPeriodsChartQuery,
+  useGetTradingStoredBalanceQuery,
+  useGetTradingHistoryQuery,
+  useRequestTradingCashoutMutation,
+  useRequestTradingStoreMutation,
 } = overxApi
