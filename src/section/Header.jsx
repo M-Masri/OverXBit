@@ -227,14 +227,14 @@ function Header({ portalActiveModule, onPortalModuleChange }) {
             ))}
           </nav>
 
-          <div className={`flex gap-3 ${isPortalRoute && isProfileMenuOpen ? 'self-start items-start pt-1 min-[1081px]:items-center min-[1081px]:self-auto min-[1081px]:pt-0' : 'items-center'}`}>
+          <div className="flex items-center gap-3">
             {isPortalRoute ? (
               <>
-                <div className={`relative ${isProfileMenuOpen ? 'w-52 overflow-hidden rounded-2xl border border-[#3b82f6]/30 bg-[rgba(5,14,32,0.97)] sm:w-52' : ''}`} ref={profileMenuRef}>
+                <div className="relative" ref={profileMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsProfileMenuOpen((prev) => !prev)}
-                  className={`group flex w-[min(13rem,calc(100vw-5.5rem))] items-center gap-3 px-3 py-2 transition sm:w-52 ${isProfileMenuOpen ? 'border-0 border-b border-[#3b82f6]/30 bg-transparent' : 'rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.03)] hover:border-[#3b82f6]/45 hover:bg-[rgba(59,130,246,0.1)]'}`}
+                  className="group flex w-[min(13rem,calc(100vw-5.5rem))] items-center gap-3 rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.03)] px-3 py-2 transition hover:border-[#3b82f6]/45 hover:bg-[rgba(59,130,246,0.1)] sm:w-52"
                   aria-haspopup="menu"
                   aria-expanded={isProfileMenuOpen}
                 >
@@ -249,11 +249,11 @@ function Header({ portalActiveModule, onPortalModuleChange }) {
                     </span>
                   </span>
 
-                  <FaChevronDown className="text-[10px] text-slate-400" />
+                  <FaChevronDown className={`text-[10px] text-slate-400 transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {isProfileMenuOpen ? (
-                  <div role="menu" className="w-52 space-y-1 bg-transparent p-2">
+                  <div role="menu" className="absolute right-0 top-[calc(100%+0.5rem)] z-[60] w-52 space-y-1 rounded-2xl border border-[#3b82f6]/30 bg-[rgba(5,14,32,0.97)] p-2 shadow-[0_16px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl">
                     {portalActiveModule && onPortalModuleChange ? (
                       <div className="rounded-xl border border-white/10 bg-[rgba(255,255,255,0.03)] px-3 py-3 min-[1081px]:hidden">
                         <p className="mb-2.5 text-[10px] uppercase tracking-[0.18em] text-slate-400">Portal Mode</p>
