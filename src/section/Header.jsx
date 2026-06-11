@@ -227,9 +227,10 @@ function Header({ portalActiveModule, onPortalModuleChange }) {
             ))}
           </nav>
 
-          <div className={`flex gap-3 ${isPortalRoute && isProfileMenuOpen ? 'self-start items-start pt-1' : 'items-center'}`}>
+          <div className={`flex gap-3 ${isPortalRoute && isProfileMenuOpen ? 'self-start items-start pt-1 min-[1081px]:items-center min-[1081px]:self-auto min-[1081px]:pt-0' : 'items-center'}`}>
             {isPortalRoute ? (
-              <div className={`relative ${isProfileMenuOpen ? 'w-52 overflow-hidden rounded-2xl border border-[#3b82f6]/30 bg-[rgba(5,14,32,0.97)] sm:w-52' : ''}`} ref={profileMenuRef}>
+              <>
+                <div className={`relative ${isProfileMenuOpen ? 'w-52 overflow-hidden rounded-2xl border border-[#3b82f6]/30 bg-[rgba(5,14,32,0.97)] sm:w-52' : ''}`} ref={profileMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsProfileMenuOpen((prev) => !prev)}
@@ -254,7 +255,7 @@ function Header({ portalActiveModule, onPortalModuleChange }) {
                 {isProfileMenuOpen ? (
                   <div role="menu" className="w-52 space-y-1 bg-transparent p-2">
                     {portalActiveModule && onPortalModuleChange ? (
-                      <div className="rounded-xl border border-white/10 bg-[rgba(255,255,255,0.03)] px-3 py-3">
+                      <div className="rounded-xl border border-white/10 bg-[rgba(255,255,255,0.03)] px-3 py-3 min-[1081px]:hidden">
                         <p className="mb-2.5 text-[10px] uppercase tracking-[0.18em] text-slate-400">Portal Mode</p>
                         <PortalModuleToggle activeModule={portalActiveModule} onChange={onPortalModuleChange} />
                       </div>
@@ -279,6 +280,13 @@ function Header({ portalActiveModule, onPortalModuleChange }) {
                   </div>
                 ) : null}
               </div>
+
+                {portalActiveModule && onPortalModuleChange ? (
+                  <div className="hidden shrink-0 min-[1081px]:block">
+                    <PortalModuleToggle activeModule={portalActiveModule} onChange={onPortalModuleChange} />
+                  </div>
+                ) : null}
+              </>
             ) : (
               <>
                 <button

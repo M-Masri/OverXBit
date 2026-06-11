@@ -1632,6 +1632,20 @@
     .portal-sidebar-backdrop {
       display: none;
     }
+
+    .portal-layout {
+      padding-top: 5rem;
+      min-height: calc(100vh - 5rem);
+    }
+
+    .portal-theme .portal-sidebar {
+      padding-top: 0.9rem;
+      min-height: calc(100vh - 5rem);
+    }
+
+    .portal-theme .portal-page-main {
+      padding-top: 0;
+    }
   }
 
   .site-mobile-nav-backdrop {
