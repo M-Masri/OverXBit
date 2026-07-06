@@ -25,9 +25,9 @@ import { clearSession, selectToken, selectUser } from '../services/authSlice'
 import {
   useChangePasswordMutation,
   useCreatePortalCashoutDetailsMutation,
-  useDownloadAllPeriodReportsMutation,
   useDownloadPeriodReportMutation,
   useGetPortalDashboardQuery,
+  useGetMiningContractsQuery,
   useGetPortalHistoryQuery,
   useGetPortalMethodsQuery,
   useGetPortalPeriodsChartQuery,
@@ -47,6 +47,20 @@ import {
   useUpdatePortalProfileMutation,
 } from '../services/overxApi'
 import { clearStoredToken } from '../services/sessionStorage'
+import ContractPeriodExplorer from '../components/ContractPeriodExplorer'
+import PortalPeriodSelect from '../components/PortalPeriodSelect'
+import {
+  buildDailyPeriodRows,
+  buildDailyRevenueSeriesFromPayload,
+  buildMonthlyStatusSeriesFromPeriods,
+  filterPeriodsByContract,
+  getPeriodDisplayLabel,
+  getPeriodContractGroup,
+  resolveCurrentPeriodId,
+  resolveDefaultContractId,
+  resolveDefaultPeriodId,
+  sortPeriodsForClient,
+} from '../utils/periodUtils'
 import Header from '../section/Header'
 
 const miningSections = [
@@ -736,116 +750,6 @@ function buildMonthlyStatusSeries(rawChart) {
   }))
 }
 
-function resolveDefaultPeriodId(rawMonthlyChart, dashboardPayload, periodsList = []) {
-  const dashboardCandidates = [
-    dashboardPayload?.current_period?.id,
-    dashboardPayload?.latest_period?.id,
-    dashboardPayload?.period?.id,
-    dashboardPayload?.stats?.current_period_id,
-    dashboardPayload?.stats?.latest_period_id,
-  ]
-
-  for (const candidate of dashboardCandidates) {
-    const numeric = Number(candidate)
-    if (Number.isFinite(numeric) && numeric > 0) {
-      return numeric
-    }
-  }
-
-  const details = Array.isArray(rawMonthlyChart?.details) ? rawMonthlyChart.details : []
-
-  const detailRows = details
-    .map((entry) => {
-      const id = Number(entry?.id)
-      const dateSeed = entry?.end_date || entry?.start_date || entry?.date || null
-      const stamp = dateSeed ? new Date(dateSeed).getTime() : Number.NaN
-
-      return {
-        id,
-        stamp: Number.isFinite(stamp) ? stamp : Number.NEGATIVE_INFINITY,
-      }
-    })
-    .filter((row) => Number.isFinite(row.id) && row.id > 0)
-
-  if (detailRows.length) {
-    detailRows.sort((a, b) => {
-      if (b.stamp !== a.stamp) {
-        return b.stamp - a.stamp
-      }
-
-      return b.id - a.id
-    })
-    return detailRows[0].id
-  }
-
-  const periodsRows = (Array.isArray(periodsList) ? periodsList : [])
-    .map((entry) => {
-      const id = Number(entry?.id)
-      const dateSeed = entry?.end_date || entry?.start_date || entry?.date || null
-      const stamp = dateSeed ? new Date(dateSeed).getTime() : Number.NaN
-
-      return {
-        id,
-        stamp: Number.isFinite(stamp) ? stamp : Number.NEGATIVE_INFINITY,
-      }
-    })
-    .filter((row) => Number.isFinite(row.id) && row.id > 0)
-
-  if (periodsRows.length) {
-    periodsRows.sort((a, b) => {
-      if (b.stamp !== a.stamp) {
-        return b.stamp - a.stamp
-      }
-
-      return b.id - a.id
-    })
-    return periodsRows[0].id
-  }
-
-  return null
-}
-
-function buildDailyRevenueSeries(rawChart) {
-  const labels = Array.isArray(rawChart?.labels) ? rawChart.labels : []
-  const dailyRevenue = Array.isArray(rawChart?.daily_revenue) ? rawChart.daily_revenue : []
-
-  if (!labels.length || !dailyRevenue.length) {
-    return []
-  }
-
-  return labels.map((label, index) => {
-    const value = Number(dailyRevenue[index] || 0)
-    return {
-      id: `daily-${index}`,
-      label,
-      value: Number.isFinite(value) ? value : 0,
-    }
-  })
-}
-
-function getPeriodOptionLabel(period) {
-  if (!period) {
-    return 'Unknown period'
-  }
-
-  const periodLabel = period.period || period.label || period.name || ''
-  if (periodLabel) {
-    return String(periodLabel)
-  }
-
-  const startDate =
-    period.start_date || period.startDate || period.started_at || period.startedAt || period.from_date || period.fromDate || null
-  const endDate = period.end_date || period.endDate || period.ended_at || period.endedAt || period.to_date || period.toDate || null
-  const start = formatDate(startDate)
-  const end = formatDate(endDate)
-
-  if (start !== 'Not available' || end !== 'Not available') {
-    return `${start} - ${end}`
-  }
-
-  return `Period #${period.id || 'N/A'}`
-}
-
 function formatStatusLabel(status) {
   const raw = String(status || 'unknown').toLowerCase()
   if (raw === 'cashed_out') {
@@ -888,9 +792,16 @@ function buildSmoothLinePath(points) {
   return path
 }
 
-function DashboardChartSection({ chartQuery, onRetry, className = 'mt-6' }) {
+function DashboardChartSection({ chartQuery, periodsFallback = [], onRetry, className = 'mt-6' }) {
   const [hoveredPoint, setHoveredPoint] = useState(null)
-  const series = buildMonthlyStatusSeries(chartQuery.data?.chart)
+  const series = useMemo(() => {
+    const fromChart = buildMonthlyStatusSeries(chartQuery.data?.chart)
+    if (fromChart.length) {
+      return fromChart
+    }
+
+    return buildMonthlyStatusSeriesFromPeriods(periodsFallback)
+  }, [chartQuery.data?.chart, periodsFallback])
   const totalCashedOut = series.reduce((sum, point) => sum + Number(point.cashedOut || 0), 0)
   const totalStored = series.reduce((sum, point) => sum + Number(point.stored || 0), 0)
   const maxValue = series.reduce((max, point) => Math.max(max, Number(point.cashedOut || 0), Number(point.stored || 0)), 0)
@@ -959,7 +870,9 @@ function DashboardChartSection({ chartQuery, onRetry, className = 'mt-6' }) {
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-[#2ABBAF]">Cycle Chart</p>
             <h3 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">Earning periods performance</h3>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">Grouped monthly comparison from /client/earning-periods/chart.</p>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">
+              Monthly overview comparing cashed-out vs stored revenue across your earning periods.
+            </p>
             <div className="mt-4 flex flex-wrap items-center gap-4 text-xs">
               <span className="inline-flex items-center gap-2 text-slate-300"><span className="h-2.5 w-2.5 rounded-sm bg-[#1D4ED8]" />Cashed Out ($)</span>
               <span className="inline-flex items-center gap-2 text-slate-300"><span className="h-2.5 w-2.5 rounded-sm bg-[#1D4ED8]" />Stored ($)</span>
@@ -1102,7 +1015,11 @@ function DashboardChartSection({ chartQuery, onRetry, className = 'mt-6' }) {
             </div>
           ) : (
             <div className="mt-6">
-              <EmptyState title="No chart points yet." detail="Chart endpoint responded without series values." compact />
+              <EmptyState
+                title="No monthly earnings to chart yet."
+                detail="This chart compares cashed-out vs stored revenue by month. Data will appear once earning periods include revenue totals."
+                compact
+              />
             </div>
           )
         ) : null}
@@ -1114,14 +1031,16 @@ function DashboardChartSection({ chartQuery, onRetry, className = 'mt-6' }) {
 function SinglePeriodLineChartSection({
   chartQuery,
   periodId,
-  periods = [],
-  onSelectPeriod,
+  selectedPeriod = null,
   onRetry,
   className = 'mt-6',
 }) {
   const [hoveredIndex, setHoveredIndex] = useState(null)
   const hasPeriodId = Number.isFinite(Number(periodId)) && Number(periodId) > 0
-  const points = buildDailyRevenueSeries(chartQuery.data?.chart)
+  const points = useMemo(
+    () => buildDailyRevenueSeriesFromPayload(chartQuery.data, selectedPeriod),
+    [chartQuery.data, selectedPeriod]
+  )
   const maxValue = points.reduce((max, point) => Math.max(max, Number(point.value || 0)), 0)
   const yMax = roundUpNice(maxValue || 1)
 
@@ -1170,27 +1089,8 @@ function SinglePeriodLineChartSection({
             <p className="text-xs uppercase tracking-[0.22em] text-[#2ABBAF]">Single Period Trend</p>
             <h3 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">Daily revenue line</h3>
             <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">
-              Daily line view from /client/earning-periods/{'{id}'}/chart.
+              Daily revenue trend for the selected month.
             </p>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="period-select" className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
-              Select Period
-            </label>
-            <select
-              id="period-select"
-              value={periodId || ''}
-              onChange={(event) => onSelectPeriod?.(event.target.value ? Number(event.target.value) : null)}
-              className="rounded-xl border border-white/15 bg-[#0b1a1f] px-3 py-2 text-sm text-white outline-none transition focus:border-[#2ABBAF]"
-            >
-              <option value="">Choose period</option>
-              {periods.map((period) => (
-                <option key={period.id} value={period.id}>
-                  #{period.id} - {getPeriodOptionLabel(period)}
-                </option>
-              ))}
-            </select>
           </div>
         </div>
 
@@ -1280,7 +1180,11 @@ function SinglePeriodLineChartSection({
             </div>
           ) : (
             <div className="mt-6">
-              <EmptyState title="No line points yet." detail="Single period endpoint responded without daily revenue values." compact />
+              <EmptyState
+                title="No daily revenue chart yet."
+                detail="Daily values will appear once the period chart endpoint returns day-by-day revenue."
+                compact
+              />
             </div>
           )
         ) : null}
@@ -1456,40 +1360,49 @@ function TradingPeriodsTable({ periods }) {
   )
 }
 
-function DashboardPeriodsTable({ periods }) {
+function SelectedPeriodDailyTable({ periodId, selectedPeriod, chartQuery }) {
   const token = useSelector(selectToken)
-  const [downloadAllPeriodReports, { isLoading: allReportsLoading }] = useDownloadAllPeriodReportsMutation()
-  const [downloadPeriodReport] = useDownloadPeriodReportMutation()
-  const [activePeriodReportId, setActivePeriodReportId] = useState(null)
-  const [allReportsHref, setAllReportsHref] = useState('#')
-  const [periodReportHrefs, setPeriodReportHrefs] = useState({})
-  const rows = Array.isArray(periods) ? periods.slice(0, 8) : []
+  const [downloadPeriodReport, { isLoading: reportLoading }] = useDownloadPeriodReportMutation()
+  const [reportHref, setReportHref] = useState('#')
+  const numericPeriodId = Number(periodId)
+  const hasPeriodId = Number.isFinite(numericPeriodId) && numericPeriodId > 0
+  const dailyRows = useMemo(() => buildDailyPeriodRows(chartQuery.data, selectedPeriod), [chartQuery.data, selectedPeriod])
+  const totalBtc = dailyRows.reduce((sum, row) => sum + Number(row.btc || 0), 0)
+  const totalRevenue = dailyRows.reduce((sum, row) => sum + Number(row.revenue || 0), 0)
+  const periodLabel = selectedPeriod ? getPeriodDisplayLabel(selectedPeriod) : 'Selected month'
+
+  useEffect(() => {
+    setReportHref('#')
+  }, [numericPeriodId])
 
   function resolveApiUrl(response) {
     const url = response.data.url
     return typeof url === 'string' ? url.trim() : ''
   }
 
-  async function handleDownloadAllReports(event) {
-    if (allReportsHref !== '#') {
+  async function handleDownloadReport(event) {
+    if (reportHref !== '#') {
       return
     }
 
     event.preventDefault()
 
-    if (!token) {
+    if (!hasPeriodId || !token) {
       return
     }
 
     try {
-      const response = await downloadAllPeriodReports({ token }).unwrap()
-      const url = resolveApiUrl(response)
+      const response = await downloadPeriodReport({
+        earning_period_id: numericPeriodId,
+        token,
+      }).unwrap()
 
+      const url = resolveApiUrl(response)
       if (!url) {
         return
       }
 
-      setAllReportsHref(url)
+      setReportHref(url)
 
       const opened = window.open(url, '_blank')
       if (!opened) {
@@ -1498,114 +1411,93 @@ function DashboardPeriodsTable({ periods }) {
     } catch (error) {}
   }
 
-  async function handleDownloadSingleReport(event, period) {
-    const earningPeriodId = Number(period?.id)
-    const existingHref = periodReportHrefs[earningPeriodId]
-
-    if (existingHref) {
-      return
-    }
-
-    event.preventDefault()
-
-    if (!Number.isFinite(earningPeriodId) || earningPeriodId <= 0 || !token) {
-      return
-    }
-
-    setActivePeriodReportId(earningPeriodId)
-
-    try {
-      const response = await downloadPeriodReport({
-        earning_period_id: earningPeriodId,
-        token,
-      }).unwrap()
-
-      const urlToOpen = resolveApiUrl(response)
-
-      if (!urlToOpen) {
-        return
-      }
-
-      setPeriodReportHrefs((prev) => ({
-        ...prev,
-        [earningPeriodId]: urlToOpen,
-      }))
-
-      const opened = window.open(urlToOpen, '_blank')
-      if (!opened) {
-        window.location.href = urlToOpen
-      }
-    } catch (error) {
-    } finally {
-      setActivePeriodReportId(null)
-    }
-  }
-
   return (
     <section className="portal-panel rounded-[1.45rem] p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="portal-subtitle">Data Table</p>
-          <h3 className="mt-1 text-xl font-semibold text-white">Recent periods</h3>
+          <p className="portal-subtitle">Daily Breakdown</p>
+          <h3 className="mt-1 text-xl font-semibold text-white">{periodLabel}</h3>
+          <p className="mt-2 text-sm text-slate-400">Day-by-day BTC earned and revenue for the selected month.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="portal-chip">{rows.length} rows</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {hasPeriodId ? <span className="portal-chip">{dailyRows.length} days</span> : null}
           <a
-            href={allReportsHref}
-            onClick={handleDownloadAllReports}
+            href={reportHref}
+            onClick={handleDownloadReport}
             className="portal-secondary-button cursor-pointer"
             target="_blank"
             rel="noreferrer"
+            aria-disabled={!hasPeriodId}
           >
-            {allReportsLoading ? 'Downloading...' : 'Download All Reports'}
+            {reportLoading ? 'Downloading...' : 'Download Month Report'}
           </a>
         </div>
       </div>
 
-      {rows.length ? (
-        <div className="portal-table-shell mt-4">
-          <table className="portal-data-table">
-            <thead>
-              <tr>
-                <th>Period</th>
-                <th>Status</th>
-                <th>Decision</th>
-                <th>BTC Earned</th>
-                <th>Revenue</th>
-                <th>Report</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((period) => {
-                return (
-                  <tr key={period.id}>
-                    <td>{period.period || period.label || `${formatDate(period.start_date)} - ${formatDate(period.end_date)}`}</td>
-                    <td><span className="portal-badge">{formatStatusLabel(period.status)}</span></td>
-                    <td>{period.client_decision || 'pending'}</td>
-                    <td>{formatBtc(period.total_btc_earned)}</td>
-                    <td>{formatMoney(period.total_revenue)}</td>
-                    <td>
-                      <a
-                        href={periodReportHrefs[Number(period.id)] || '#'}
-                        onClick={(event) => handleDownloadSingleReport(event, period)}
-                        className="portal-secondary-button cursor-pointer"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {activePeriodReportId === Number(period.id) ? 'Downloading...' : 'Download Reports'}
-                      </a>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
+      {!hasPeriodId ? (
         <div className="mt-4">
-          <EmptyState title="No periods yet." detail="The table will populate once periods are available." compact />
+          <EmptyState title="Select a month to view daily earnings." detail="Choose a period from the selector above." compact />
         </div>
-      )}
+      ) : null}
+
+      {hasPeriodId && (chartQuery.isLoading || chartQuery.isFetching) ? (
+        <div className="mt-4 rounded-[1.2rem] border border-white/10 bg-[rgba(255,255,255,0.03)] p-8">
+          <div className="portal-loader" />
+          <p className="mt-5 text-sm text-slate-300">Loading daily earnings for {periodLabel}.</p>
+        </div>
+      ) : null}
+
+      {hasPeriodId && !chartQuery.isLoading && !chartQuery.isFetching && chartQuery.error ? (
+        <div className="mt-4 rounded-[1.2rem] border border-red-400/30 bg-red-500/10 p-6">
+          <p className="text-sm text-red-200">{getQueryErrorMessage(chartQuery.error)}</p>
+        </div>
+      ) : null}
+
+      {hasPeriodId && !chartQuery.isLoading && !chartQuery.isFetching && !chartQuery.error ? (
+        dailyRows.length ? (
+          <>
+            <div className="portal-table-shell mt-4">
+              <table className="portal-data-table">
+                <thead>
+                  <tr>
+                    <th>Day</th>
+                    <th>BTC Earned</th>
+                    <th>Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dailyRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>{formatDate(row.date)}</td>
+                      <td>{formatBtc(row.btc)}</td>
+                      <td>{formatMoney(row.revenue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="portal-metric-block">
+                <span>Month BTC Total</span>
+                <strong>{formatBtc(totalBtc)}</strong>
+              </div>
+              <div className="portal-metric-block">
+                <span>Month Revenue Total</span>
+                <strong>{formatMoney(totalRevenue)}</strong>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="mt-4">
+            <EmptyState
+              title="No daily earnings yet."
+              detail="This month has no daily rows from the period chart endpoint yet."
+              compact
+            />
+          </div>
+        )
+      ) : null}
     </section>
   )
 }
@@ -1660,71 +1552,86 @@ function DashboardView({ payload }) {
   )
 }
 
-function PeriodsView({ payload, onRequestCashout, onRequestStore, actionState }) {
-  const periods = payload.periods || []
-  const pendingPeriods = getPendingPeriods(payload)
+function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestStore, actionState }) {
+  const rows = sortPeriodsForClient(periods, contracts)
 
   return (
-    <div className="space-y-6">
-      <div className="portal-panel rounded-[1.9rem] p-6 sm:p-4" style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Cycle Monitor</p>
-            <h3 className="mt-2 text-2xl font-semibold text-white">Earning periods</h3>
-          </div>
-          <div className="portal-chip"><FaClock className="text-[#2ABBAF]" />{pendingPeriods.length} ready for action</div>
+    <section className="portal-panel rounded-[1.45rem] p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="portal-subtitle">All Periods</p>
+          <h3 className="mt-1 text-xl font-semibold text-white">Monthly earning ledger</h3>
+          <p className="mt-2 text-sm text-slate-400">Review every month, take cashout/store actions when a cycle is completed.</p>
         </div>
-
-        <div className="mt-6 space-y-4">
-          {periods.length ? (
-            periods.map((period) => (
-              <div key={period.id} className="portal-table-row">
-                <div>
-                  <p className="text-sm font-semibold text-white">
-                    {period.period || period.label || `${formatDate(period.start_date)} - ${formatDate(period.end_date)}`}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-400">{period.days_count} days · Decision: {period.client_decision || 'pending'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-400">BTC Earned</p>
-                  <p className="mt-1 font-semibold text-white">{formatBtc(period.total_btc_earned)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-400">Revenue</p>
-                  <p className="mt-1 font-semibold text-white">{formatMoney(period.total_revenue)}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  {['complete', 'completed'].includes(String(period?.status || '').toLowerCase()) ? (
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onRequestCashout(period.id)}
-                        disabled={actionState.loading}
-                        className="portal-secondary-button"
-                      >
-                        {actionState.loading && actionState.type === 'cashout' && actionState.periodId === period.id ? 'Sending...' : 'Cashout'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onRequestStore(period.id)}
-                        disabled={actionState.loading}
-                        className="portal-secondary-button"
-                      >
-                        {actionState.loading && actionState.type === 'store' && actionState.periodId === period.id ? 'Sending...' : 'Store'}
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="portal-badge">{period.status || 'unknown'}</span>
-                  )}
-                </div>
-              </div>
-            ))
-          ) : (
-            <EmptyState title="No earning periods returned yet." detail="Once the API starts returning cycles, they will appear here." />
-          )}
-        </div>
+        <span className="portal-chip">{rows.length} periods</span>
       </div>
-    </div>
+
+      {rows.length ? (
+        <div className="portal-table-shell mt-4">
+          <table className="portal-data-table">
+            <thead>
+              <tr>
+                <th>Contract</th>
+                <th>Period</th>
+                <th>Status</th>
+                <th>Decision</th>
+                <th>BTC Earned</th>
+                <th>Revenue</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((period) => {
+                const canAct = ['complete', 'completed'].includes(String(period?.status || '').toLowerCase())
+
+                return (
+                  <tr key={period.id}>
+                    <td>{getPeriodContractGroup(period, contracts) || '—'}</td>
+                    <td>{getPeriodDisplayLabel(period)}</td>
+                    <td><span className="portal-badge">{formatStatusLabel(period.status)}</span></td>
+                    <td>{period.client_decision || 'pending'}</td>
+                    <td>{formatBtc(period.total_btc_earned)}</td>
+                    <td>{formatMoney(period.total_revenue)}</td>
+                    <td>
+                      {canAct ? (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onRequestCashout(period.id)}
+                            disabled={actionState.loading}
+                            className="portal-secondary-button"
+                          >
+                            {actionState.loading && actionState.type === 'cashout' && actionState.periodId === period.id
+                              ? 'Sending...'
+                              : 'Cashout'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onRequestStore(period.id)}
+                            disabled={actionState.loading}
+                            className="portal-secondary-button"
+                          >
+                            {actionState.loading && actionState.type === 'store' && actionState.periodId === period.id
+                              ? 'Sending...'
+                              : 'Store'}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-500">—</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <EmptyState title="No earning periods yet." detail="Monthly cycles will appear here once the API returns them." compact />
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -2153,14 +2060,7 @@ function ContentRenderer({
   }
 
   if (section.slug === 'periods') {
-    return (
-      <PeriodsView
-        payload={payload}
-        onRequestCashout={onRequestCashout}
-        onRequestStore={onRequestStore}
-        actionState={actionState}
-      />
-    )
+    return null
   }
 
   if (section.slug === 'history') {
@@ -2253,6 +2153,7 @@ function ClientPortalPage() {
     password_confirmation: false,
   })
   const [selectedPeriodId, setSelectedPeriodId] = useState(null)
+  const [selectedContractId, setSelectedContractId] = useState(null)
 
   useEffect(() => {
     if (activeModule === 'mining' && activeSection.slug === 'contracts') {
@@ -2286,14 +2187,19 @@ function ClientPortalPage() {
     }
   }, [isMobileSidebarOpen])
 
+  const isMiningPeriodsRoute = isMiningModule && ['dashboard', 'periods'].includes(activeSection.slug)
+
   const dashboardQuery = useGetPortalDashboardQuery(undefined, {
     skip: !isMiningModule || activeSection.slug !== 'dashboard',
   })
   const periodsChartQuery = useGetPortalPeriodsChartQuery(undefined, {
     skip: !isMiningModule || activeSection.slug !== 'dashboard' || !token,
   })
-  const dashboardPeriodsQuery = useGetPortalPeriodsQuery(undefined, {
-    skip: !isMiningModule || activeSection.slug !== 'dashboard' || !token,
+  const miningPeriodsQuery = useGetPortalPeriodsQuery(undefined, {
+    skip: !isMiningPeriodsRoute || !token,
+  })
+  const miningContractsQuery = useGetMiningContractsQuery(undefined, {
+    skip: !isMiningPeriodsRoute || !token,
   })
   const tradingContractsQuery = useGetTradingContractsQuery(
     { status: 'active' },
@@ -2319,58 +2225,75 @@ function ClientPortalPage() {
       resolveDefaultPeriodId(
         periodsChartQuery.data?.chart,
         dashboardQuery.data?.dashboard,
-        dashboardPeriodsQuery.data?.periods
+        miningPeriodsQuery.data?.periods
       ),
-    [periodsChartQuery.data?.chart, dashboardQuery.data?.dashboard, dashboardPeriodsQuery.data?.periods]
+    [periodsChartQuery.data?.chart, dashboardQuery.data?.dashboard, miningPeriodsQuery.data?.periods]
   )
   const periodOptions = useMemo(() => {
-    const rows = Array.isArray(dashboardPeriodsQuery.data?.periods) ? dashboardPeriodsQuery.data.periods : []
+    const rows = Array.isArray(miningPeriodsQuery.data?.periods) ? miningPeriodsQuery.data.periods : []
+    const contracts = Array.isArray(miningContractsQuery.data?.contracts) ? miningContractsQuery.data.contracts : []
 
-    const resolvePeriodDate = (period) =>
-      period?.end_date ||
-      period?.endDate ||
-      period?.ended_at ||
-      period?.endedAt ||
-      period?.to_date ||
-      period?.toDate ||
-      period?.start_date ||
-      period?.startDate ||
-      period?.started_at ||
-      period?.startedAt ||
-      period?.from_date ||
-      period?.fromDate ||
-      0
+    return sortPeriodsForClient(rows, contracts)
+  }, [miningPeriodsQuery.data?.periods, miningContractsQuery.data?.contracts])
 
-    return [...rows].sort((a, b) => {
-      const aDate = new Date(resolvePeriodDate(a)).getTime()
-      const bDate = new Date(resolvePeriodDate(b)).getTime()
-      if (bDate !== aDate) {
-        return bDate - aDate
-      }
+  const miningContracts = useMemo(
+    () => (Array.isArray(miningContractsQuery.data?.contracts) ? miningContractsQuery.data.contracts : []),
+    [miningContractsQuery.data?.contracts]
+  )
 
-      return Number(b?.id || 0) - Number(a?.id || 0)
-    })
-  }, [dashboardPeriodsQuery.data?.periods])
+  const contractPeriods = useMemo(
+    () => sortPeriodsForClient(filterPeriodsByContract(periodOptions, miningContracts, selectedContractId), miningContracts),
+    [miningContracts, periodOptions, selectedContractId]
+  )
 
   useEffect(() => {
+    if (activeSection.slug !== 'periods' || !miningContracts.length) {
+      return
+    }
+
+    if (selectedContractId) {
+      return
+    }
+
+    setSelectedContractId(resolveDefaultContractId(miningContracts, periodOptions))
+  }, [activeSection.slug, miningContracts, periodOptions, selectedContractId])
+
+  useEffect(() => {
+    const source = activeSection.slug === 'periods' ? contractPeriods : periodOptions
+
     if (selectedPeriodId) {
-      const stillExists = periodOptions.some((period) => Number(period.id) === Number(selectedPeriodId))
+      const stillExists = source.some((period) => Number(period.id) === Number(selectedPeriodId))
       if (!stillExists) {
-        setSelectedPeriodId(defaultPeriodId || null)
+        const fallback =
+          activeSection.slug === 'periods' ? resolveCurrentPeriodId(contractPeriods) : defaultPeriodId
+        setSelectedPeriodId(fallback || null)
       }
       return
     }
 
-    if (defaultPeriodId) {
-      setSelectedPeriodId(defaultPeriodId)
+    const initial = activeSection.slug === 'periods' ? resolveCurrentPeriodId(contractPeriods) : defaultPeriodId
+
+    if (initial) {
+      setSelectedPeriodId(initial)
     }
-  }, [defaultPeriodId, periodOptions, selectedPeriodId])
+  }, [activeSection.slug, contractPeriods, defaultPeriodId, periodOptions, selectedPeriodId])
+
+  const selectedPeriod = useMemo(() => {
+    const source = activeSection.slug === 'periods' ? contractPeriods : periodOptions
+    return source.find((period) => Number(period.id) === Number(selectedPeriodId)) || null
+  }, [activeSection.slug, contractPeriods, periodOptions, selectedPeriodId])
+
+  function handleContractChange(contractId) {
+    setSelectedContractId(contractId)
+    const filtered = sortPeriodsForClient(
+      filterPeriodsByContract(periodOptions, miningContracts, contractId),
+      miningContracts
+    )
+    setSelectedPeriodId(resolveCurrentPeriodId(filtered))
+  }
 
   const singlePeriodChartQuery = useGetPortalSinglePeriodChartQuery(selectedPeriodId, {
-    skip: !isMiningModule || activeSection.slug !== 'dashboard' || !token || !selectedPeriodId,
-  })
-  const periodsQuery = useGetPortalPeriodsQuery(undefined, {
-    skip: !isMiningModule || activeSection.slug !== 'periods',
+    skip: !isMiningPeriodsRoute || !token || !selectedPeriodId,
   })
   const historyQuery = useGetPortalHistoryQuery(undefined, {
     skip: !isMiningModule || activeSection.slug !== 'history',
@@ -2459,7 +2382,7 @@ function ClientPortalPage() {
     }
 
     if (activeSection.slug === 'periods') {
-      return periodsQuery
+      return miningPeriodsQuery
     }
 
     if (activeSection.slug === 'history') {
@@ -2477,7 +2400,7 @@ function ClientPortalPage() {
     historyQuery,
     isTradingModule,
     methodsQuery,
-    periodsQuery,
+    miningPeriodsQuery,
     profileQuery,
     tradingBalanceQuery,
     tradingChartQuery,
@@ -2555,7 +2478,7 @@ function ClientPortalPage() {
     try {
       await requestPeriodCashout({ earning_period_id: periodId, token }).unwrap()
       setPeriodStatusOverrides((prev) => ({ ...prev, [periodId]: 'cashout requested' }))
-      periodsQuery.refetch()
+      miningPeriodsQuery.refetch()
     } catch (requestError) {
       setPeriodActionError(getQueryErrorMessage(requestError))
     } finally {
@@ -2613,7 +2536,7 @@ function ClientPortalPage() {
 
         await requestPeriodStore({ earning_period_id: periodId, token }).unwrap()
         setPeriodStatusOverrides((prev) => ({ ...prev, [periodId]: 'stored' }))
-        periodsQuery.refetch()
+        miningPeriodsQuery.refetch()
       }
     } catch (requestError) {
       setPeriodActionError(getQueryErrorMessage(requestError))
@@ -2948,20 +2871,87 @@ function ClientPortalPage() {
 
             {activeSection.slug === 'dashboard' && isMiningModule ? (
               <section className="mt-6 grid gap-6">
+                <div className="portal-panel overflow-visible flex flex-wrap items-end justify-between gap-4 rounded-[1.45rem] p-4 sm:p-5">
+                  <div>
+                    <p className="portal-subtitle">Monthly View</p>
+                    <h3 className="mt-1 text-xl font-semibold text-white">Select earning period</h3>
+                    <p className="mt-2 max-w-2xl text-sm text-slate-400">
+                      Choose the month to inspect daily earnings, revenue trend, and download that month&apos;s report.
+                    </p>
+                  </div>
+                  <PortalPeriodSelect
+                    id="period-select"
+                    periods={periodOptions}
+                    contracts={miningContractsQuery.data?.contracts || []}
+                    value={selectedPeriodId}
+                    onChange={setSelectedPeriodId}
+                    placeholder="Choose period"
+                    className="min-w-[260px]"
+                  />
+                </div>
                 <DashboardChartSection
                   className="min-w-0"
                   chartQuery={periodsChartQuery}
+                  periodsFallback={periodOptions}
                   onRetry={() => periodsChartQuery.refetch()}
                 />
                 <SinglePeriodLineChartSection
                   className="min-w-0"
                   chartQuery={singlePeriodChartQuery}
                   periodId={selectedPeriodId}
-                  periods={periodOptions}
-                  onSelectPeriod={setSelectedPeriodId}
+                  selectedPeriod={selectedPeriod}
                   onRetry={() => singlePeriodChartQuery.refetch()}
                 />
-                <DashboardPeriodsTable periods={periodOptions} />
+                <SelectedPeriodDailyTable
+                  periodId={selectedPeriodId}
+                  selectedPeriod={selectedPeriod}
+                  chartQuery={singlePeriodChartQuery}
+                />
+              </section>
+            ) : activeSection.slug === 'periods' && isMiningModule ? (
+              <section className="mt-6 grid gap-6">
+                {periodActionError ? (
+                  <div className="rounded-[1.2rem] border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                    {periodActionError}
+                  </div>
+                ) : null}
+
+                {loading ? (
+                  <div className="portal-panel rounded-[1.45rem] p-8 sm:p-10">
+                    <div className="portal-loader" />
+                    <p className="mt-5 text-sm text-slate-300">Loading earning periods.</p>
+                  </div>
+                ) : null}
+
+                {!loading && error ? (
+                  <div className="rounded-[1.45rem] border border-red-400/30 bg-red-500/10 p-6">
+                    <EmptyState title="Earning periods could not be loaded." detail={error} />
+                  </div>
+                ) : null}
+
+                {!loading && !error ? (
+                  <>
+                    <ContractPeriodExplorer
+                      contracts={miningContracts}
+                      contractId={selectedContractId}
+                      onContractChange={handleContractChange}
+                      periods={payloadWithPeriodOverrides.periods || []}
+                      periodId={selectedPeriodId}
+                      onPeriodChange={setSelectedPeriodId}
+                      chartQuery={singlePeriodChartQuery}
+                      onRetry={() => singlePeriodChartQuery.refetch()}
+                      errorMessage={getQueryErrorMessage(singlePeriodChartQuery.error)}
+                    />
+
+                    <MiningPeriodsLedger
+                      periods={contractPeriods}
+                      contracts={miningContracts}
+                      onRequestCashout={handleRequestCashout}
+                      onRequestStore={handleRequestStore}
+                      actionState={periodActionState}
+                    />
+                  </>
+                ) : null}
               </section>
             ) : activeSection.slug === 'dashboard' && isTradingModule ? (
               <section className="mt-6 grid gap-6">

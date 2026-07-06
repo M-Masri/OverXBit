@@ -63,6 +63,7 @@ export const overxApi = createApi({
     'History',
     'Methods',
     'Profile',
+    'Contracts',
     'Chart',
     'Services',
     'TradingDashboard',
@@ -134,6 +135,14 @@ export const overxApi = createApi({
         dashboard: response?.data || null,
       }),
       providesTags: ['Dashboard'],
+    }),
+    getMiningContracts: builder.query({
+      query: () => '/client/contracts',
+      transformResponse: (response) => ({
+        contracts: response?.data || [],
+        contractsMeta: response?.meta || null,
+      }),
+      providesTags: ['Contracts'],
     }),
     getPortalPeriods: builder.query({
       async queryFn(_arg, _api, _extraOptions, fetchWithBQ) {
@@ -437,6 +446,7 @@ export const {
   useChangePasswordMutation,
   useGetMeQuery,
   useGetPortalDashboardQuery,
+  useGetMiningContractsQuery,
   useGetPortalHistoryQuery,
   useGetPortalMethodsQuery,
   useGetPortalSinglePeriodChartQuery,
