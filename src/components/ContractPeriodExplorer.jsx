@@ -6,10 +6,17 @@ import PortalContractSelect from './PortalContractSelect'
 import {
   buildDailyPeriodRows,
   buildDailyRevenueSeriesFromPayload,
+  dailyRowsHaveSplit,
   filterPeriodsByContract,
   getPeriodDisplayLabel,
+  getPeriodEarningsSplit,
   sortPeriodsForClient,
+  sumDailySplitRows,
 } from '../utils/periodUtils'
+
+const STORING_COLOR = '#2ABBAF'
+const CASHOUT_COLOR = '#70A9DC'
+const TOTAL_COLOR = '#94a3b8'
 
 function formatMoney(value) {
   const amount = Number(value || 0)
@@ -83,6 +90,16 @@ function buildSmoothLinePath(points) {
   return path
 }
 
+function MetricBlock({ label, value, hint }) {
+  return (
+    <div className="portal-metric-block">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {hint ? <p className="mt-1 text-[11px] text-slate-500">{hint}</p> : null}
+    </div>
+  )
+}
+
 export default function ContractPeriodExplorer({
   contracts = [],
   contractId,
@@ -119,8 +136,9 @@ export default function ContractPeriodExplorer({
     [chartQuery.data, selectedPeriod]
   )
 
-  const totalBtc = dailyRows.reduce((sum, row) => sum + Number(row.btc || 0), 0)
-  const totalRevenue = dailyRows.reduce((sum, row) => sum + Number(row.revenue || 0), 0)
+  const showSplit = dailyRowsHaveSplit(dailyRows) || getPeriodEarningsSplit(selectedPeriod).hasSplit
+  const dailyTotals = useMemo(() => sumDailySplitRows(dailyRows), [dailyRows])
+  const periodSplit = useMemo(() => getPeriodEarningsSplit(selectedPeriod), [selectedPeriod])
   const hasPeriodId = Number.isFinite(Number(periodId)) && Number(periodId) > 0
   const usingRangeFallback =
     hasPeriodId &&
@@ -136,7 +154,10 @@ export default function ContractPeriodExplorer({
     setReportHref('#')
   }, [periodId])
 
-  const maxValue = points.reduce((max, point) => Math.max(max, Number(point.value || 0)), 0)
+  const maxValue = points.reduce(
+    (max, point) => Math.max(max, Number(point.value || 0), Number(point.storing || 0), Number(point.cashout || 0)),
+    0
+  )
   const yMax = roundUpNice(maxValue || 1)
   const chartWidth = 920
   const chartHeight = 300
@@ -150,20 +171,24 @@ export default function ContractPeriodExplorer({
 
   const linePoints = points.map((point, index) => {
     const x = Math.round(paddingLeft + index * stepX)
-    const y = Math.round(paddingTop + plotHeight - (Number(point.value || 0) / yMax) * plotHeight)
+    const toY = (value) => Math.round(paddingTop + plotHeight - (Number(value || 0) / yMax) * plotHeight)
 
     return {
       ...point,
       x,
-      y,
+      y: toY(point.value),
+      storingY: toY(point.storing),
+      cashoutY: toY(point.cashout),
       shortLabel: formatDate(point.label),
     }
   })
 
-  const linePath = buildSmoothLinePath(linePoints)
+  const totalPath = buildSmoothLinePath(linePoints.map((point) => ({ x: point.x, y: point.y })))
+  const storingPath = buildSmoothLinePath(linePoints.map((point) => ({ x: point.x, y: point.storingY })))
+  const cashoutPath = buildSmoothLinePath(linePoints.map((point) => ({ x: point.x, y: point.cashoutY })))
   const areaPath =
     linePoints.length > 1
-      ? `${linePath} L ${linePoints[linePoints.length - 1].x} ${paddingTop + plotHeight} L ${linePoints[0].x} ${paddingTop + plotHeight} Z`
+      ? `${totalPath} L ${linePoints[linePoints.length - 1].x} ${paddingTop + plotHeight} L ${linePoints[0].x} ${paddingTop + plotHeight} Z`
       : ''
 
   const hoveredPoint = hoveredIndex !== null ? linePoints[hoveredIndex] : null
@@ -211,7 +236,7 @@ export default function ContractPeriodExplorer({
           <p className="portal-subtitle">Contract Explorer</p>
           <h3 className="mt-1 text-xl font-semibold text-white">Daily earnings by month</h3>
           <p className="mt-2 max-w-2xl text-sm text-slate-400">
-            Choose a contract, then pick a month to review the daily revenue line and day-by-day breakdown.
+            Choose a contract, then pick a month to review storing vs cashout earnings day by day.
           </p>
         </div>
         <PortalContractSelect
@@ -299,11 +324,30 @@ export default function ContractPeriodExplorer({
 
           {linePoints.length ? (
             <div className="relative rounded-[1.3rem] border border-white/12 bg-[rgba(255,255,255,0.04)] p-3 sm:p-4">
+              <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-slate-300">
+                {showSplit ? (
+                  <>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: STORING_COLOR }} />
+                      Storing revenue
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: CASHOUT_COLOR }} />
+                      Cashout revenue
+                    </span>
+                  </>
+                ) : null}
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: showSplit ? TOTAL_COLOR : STORING_COLOR }} />
+                  Total revenue
+                </span>
+              </div>
+
               <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[280px] w-full">
                 <defs>
                   <linearGradient id="contractLineFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgba(42,187,175,0.22)" />
-                    <stop offset="100%" stopColor="rgba(42,187,175,0.03)" />
+                    <stop offset="0%" stopColor="rgba(42,187,175,0.18)" />
+                    <stop offset="100%" stopColor="rgba(42,187,175,0.02)" />
                   </linearGradient>
                 </defs>
 
@@ -323,16 +367,31 @@ export default function ContractPeriodExplorer({
                   </g>
                 ))}
 
-                {areaPath ? <path d={areaPath} fill="url(#contractLineFill)" /> : null}
-                {linePath ? <path d={linePath} fill="none" stroke="#2ABBAF" strokeWidth="3" strokeLinecap="round" /> : null}
+                {!showSplit && areaPath ? <path d={areaPath} fill="url(#contractLineFill)" /> : null}
+                {showSplit && storingPath ? (
+                  <path d={storingPath} fill="none" stroke={STORING_COLOR} strokeWidth="2.5" strokeLinecap="round" />
+                ) : null}
+                {showSplit && cashoutPath ? (
+                  <path d={cashoutPath} fill="none" stroke={CASHOUT_COLOR} strokeWidth="2.5" strokeLinecap="round" />
+                ) : null}
+                {totalPath ? (
+                  <path
+                    d={totalPath}
+                    fill="none"
+                    stroke={showSplit ? TOTAL_COLOR : STORING_COLOR}
+                    strokeWidth={showSplit ? 2 : 3}
+                    strokeLinecap="round"
+                    strokeDasharray={showSplit ? '5 5' : undefined}
+                  />
+                ) : null}
 
                 {linePoints.map((point, index) => (
                   <g key={point.id}>
                     <circle
                       cx={point.x}
                       cy={point.y}
-                      r={hoveredIndex === index ? 5 : 4}
-                      fill="#2ABBAF"
+                      r={hoveredIndex === index ? 5 : 3.5}
+                      fill={showSplit ? TOTAL_COLOR : STORING_COLOR}
                       stroke="#071321"
                       strokeWidth="2"
                       onMouseEnter={() => setHoveredIndex(index)}
@@ -350,7 +409,15 @@ export default function ContractPeriodExplorer({
               {hoveredPoint ? (
                 <div className="pointer-events-none absolute left-4 top-4 rounded-xl border border-[#7ad7cf]/45 bg-[#061d22]/92 px-3 py-2 shadow-[0_8px_24px_-10px_rgba(42,187,175,0.6)]">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-[#7ad7cf]">{hoveredPoint.shortLabel}</p>
-                  <p className="mt-1 text-sm font-semibold text-white">Revenue: {formatMoney(hoveredPoint.value)}</p>
+                  {showSplit ? (
+                    <>
+                      <p className="mt-1 text-sm text-slate-200">Storing: {formatMoney(hoveredPoint.storing)}</p>
+                      <p className="text-sm text-slate-200">Cashout: {formatMoney(hoveredPoint.cashout)}</p>
+                      <p className="mt-1 text-sm font-semibold text-white">Total: {formatMoney(hoveredPoint.value)}</p>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-sm font-semibold text-white">Revenue: {formatMoney(hoveredPoint.value)}</p>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -363,31 +430,86 @@ export default function ContractPeriodExplorer({
                   <thead>
                     <tr>
                       <th>Day</th>
-                      <th>BTC Earned</th>
-                      <th>Revenue</th>
+                      {showSplit ? (
+                        <>
+                          <th>BTC Storing</th>
+                          <th>BTC Cashout</th>
+                          <th>BTC Total</th>
+                          <th>Rev. Storing</th>
+                          <th>Rev. Cashout</th>
+                          <th>Revenue Total</th>
+                        </>
+                      ) : (
+                        <>
+                          <th>BTC Earned</th>
+                          <th>Revenue</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
                     {dailyRows.map((row) => (
                       <tr key={row.id}>
                         <td>{formatDate(row.date)}</td>
-                        <td>{formatBtc(row.btc)}</td>
-                        <td>{formatMoney(row.revenue)}</td>
+                        {showSplit ? (
+                          <>
+                            <td>{formatBtc(row.btcStoring)}</td>
+                            <td>{formatBtc(row.btcCashout)}</td>
+                            <td>{formatBtc(row.btc)}</td>
+                            <td>{formatMoney(row.revenueStoring)}</td>
+                            <td>{formatMoney(row.revenueCashout)}</td>
+                            <td>{formatMoney(row.revenue)}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td>{formatBtc(row.btc)}</td>
+                            <td>{formatMoney(row.revenue)}</td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="portal-metric-block">
-                  <span>Month BTC Total</span>
-                  <strong>{formatBtc(selectedPeriod?.total_btc_earned ?? totalBtc)}</strong>
-                </div>
-                <div className="portal-metric-block">
-                  <span>Month Revenue Total</span>
-                  <strong>{formatMoney(selectedPeriod?.total_revenue ?? totalRevenue)}</strong>
-                </div>
+              <div className={`grid gap-3 ${showSplit ? 'sm:grid-cols-2 xl:grid-cols-3' : 'sm:grid-cols-2'}`}>
+                {showSplit ? (
+                  <>
+                    <MetricBlock
+                      label="Storing BTC"
+                      value={formatBtc(periodSplit.hasSplit ? periodSplit.btcStoring : dailyTotals.btcStoring)}
+                      hint="From storing machines"
+                    />
+                    <MetricBlock
+                      label="Cashout BTC"
+                      value={formatBtc(periodSplit.hasSplit ? periodSplit.btcCashout : dailyTotals.btcCashout)}
+                      hint="From cashout machines"
+                    />
+                    <MetricBlock
+                      label="Month BTC Total"
+                      value={formatBtc(periodSplit.btc || dailyTotals.btc)}
+                      hint="Used for cashout / store"
+                    />
+                    <MetricBlock
+                      label="Storing Revenue"
+                      value={formatMoney(periodSplit.hasSplit ? periodSplit.revenueStoring : dailyTotals.revenueStoring)}
+                    />
+                    <MetricBlock
+                      label="Cashout Revenue"
+                      value={formatMoney(periodSplit.hasSplit ? periodSplit.revenueCashout : dailyTotals.revenueCashout)}
+                    />
+                    <MetricBlock
+                      label="Month Revenue Total"
+                      value={formatMoney(periodSplit.revenue || dailyTotals.revenue)}
+                      hint="Used for cashout / store"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <MetricBlock label="Month BTC Total" value={formatBtc(periodSplit.btc || dailyTotals.btc)} />
+                    <MetricBlock label="Month Revenue Total" value={formatMoney(periodSplit.revenue || dailyTotals.revenue)} />
+                  </>
+                )}
               </div>
             </>
           ) : (

@@ -53,13 +53,17 @@ import {
   buildDailyPeriodRows,
   buildDailyRevenueSeriesFromPayload,
   buildMonthlyStatusSeriesFromPeriods,
+  dailyRowsHaveSplit,
   filterPeriodsByContract,
+  getDashboardEarningsSplit,
   getPeriodDisplayLabel,
   getPeriodContractGroup,
+  getPeriodEarningsSplit,
   resolveCurrentPeriodId,
   resolveDefaultContractId,
   resolveDefaultPeriodId,
   sortPeriodsForClient,
+  sumDailySplitRows,
 } from '../utils/periodUtils'
 import Header from '../section/Header'
 
@@ -337,28 +341,51 @@ function getOverviewCards(module, section, payload, user) {
 
   if (section.slug === 'dashboard') {
     const stats = payload.dashboard?.stats || {}
+    const earnings = getDashboardEarningsSplit(stats)
     const revenueToday =
       stats.revenue_today ?? stats.today_revenue ?? stats.total_revenue_today ?? 0
 
     return [
       { label: 'Stored BTC', value: formatBtc(stats.stored_balance_btc), hint: 'Current reserve', accent: true },
-      { label: 'Stored Machines', value: String(stats.storing_machines || 0), hint: 'Reserved fleet' },
-      { label: 'Revenue Today', value: formatMoney(revenueToday), hint: 'Today\'s generated revenue' },
-      { label: 'Cashout Machines', value: String(stats.cashout_machines || 0), hint: 'Payout fleet' },
+      {
+        label: 'Storing Machines',
+        value: String(earnings.storingMachines || stats.storing_machines || 0),
+        hint: earnings.hasSplit ? `BTC ${formatBtc(earnings.btcStoring).replace(' BTC', '')}` : 'Reserved fleet',
+      },
+      { label: 'Revenue Today', value: formatMoney(revenueToday), hint: "Today's generated revenue" },
+      {
+        label: 'Cashout Machines',
+        value: String(earnings.cashoutMachines || stats.cashout_machines || 0),
+        hint: earnings.hasSplit ? `BTC ${formatBtc(earnings.btcCashout).replace(' BTC', '')}` : 'Payout fleet',
+      },
     ]
   }
 
   if (section.slug === 'periods') {
     const periods = payload.periods || []
     const pendingPeriods = getPendingPeriods(payload)
-    const totalBtcEarned = periods.reduce((sum, period) => sum + Number(period?.total_btc_earned || 0), 0)
-    const totalRevenue = periods.reduce((sum, period) => sum + Number(period?.total_revenue || 0), 0)
+    const totals = periods.reduce(
+      (acc, period) => {
+        const split = getPeriodEarningsSplit(period)
+        return {
+          btc: acc.btc + split.btc,
+          revenue: acc.revenue + split.revenue,
+          btcStoring: acc.btcStoring + split.btcStoring,
+          btcCashout: acc.btcCashout + split.btcCashout,
+        }
+      },
+      { btc: 0, revenue: 0, btcStoring: 0, btcCashout: 0 }
+    )
 
     return [
       { label: 'Listed Periods', value: String(payload.periodsMeta?.total || periods.length || 0), hint: 'Visible in the ledger', accent: true },
       { label: 'Ready To Act', value: String(pendingPeriods.length), hint: 'Client decision window' },
-      { label: 'Total BTC Earned', value: formatBtc(totalBtcEarned), hint: 'Across fetched periods' },
-      { label: 'Total Revenue', value: formatMoney(totalRevenue), hint: 'Across fetched periods' },
+      {
+        label: 'Total BTC Earned',
+        value: formatBtc(totals.btc),
+        hint: `Storing ${formatBtc(totals.btcStoring).replace(' BTC', '')} · Cashout ${formatBtc(totals.btcCashout).replace(' BTC', '')}`,
+      },
+      { label: 'Total Revenue', value: formatMoney(totals.revenue), hint: 'Across fetched periods' },
     ]
   }
 
@@ -1041,7 +1068,15 @@ function SinglePeriodLineChartSection({
     () => buildDailyRevenueSeriesFromPayload(chartQuery.data, selectedPeriod),
     [chartQuery.data, selectedPeriod]
   )
-  const maxValue = points.reduce((max, point) => Math.max(max, Number(point.value || 0)), 0)
+  const dailyRows = useMemo(
+    () => buildDailyPeriodRows(chartQuery.data, selectedPeriod),
+    [chartQuery.data, selectedPeriod]
+  )
+  const showSplit = dailyRowsHaveSplit(dailyRows)
+  const maxValue = points.reduce(
+    (max, point) => Math.max(max, Number(point.value || 0), Number(point.storing || 0), Number(point.cashout || 0)),
+    0
+  )
   const yMax = roundUpNice(maxValue || 1)
 
   const chartWidth = 920
@@ -1056,20 +1091,24 @@ function SinglePeriodLineChartSection({
 
   const linePoints = points.map((point, index) => {
     const x = Math.round(paddingLeft + index * stepX)
-    const y = Math.round(paddingTop + plotHeight - (Number(point.value || 0) / yMax) * plotHeight)
+    const toY = (value) => Math.round(paddingTop + plotHeight - (Number(value || 0) / yMax) * plotHeight)
 
     return {
       ...point,
       x,
-      y,
+      y: toY(point.value),
+      storingY: toY(point.storing),
+      cashoutY: toY(point.cashout),
       shortLabel: formatDate(point.label),
     }
   })
 
-  const linePath = buildSmoothLinePath(linePoints)
+  const totalPath = buildSmoothLinePath(linePoints.map((point) => ({ x: point.x, y: point.y })))
+  const storingPath = buildSmoothLinePath(linePoints.map((point) => ({ x: point.x, y: point.storingY })))
+  const cashoutPath = buildSmoothLinePath(linePoints.map((point) => ({ x: point.x, y: point.cashoutY })))
   const areaPath =
     linePoints.length > 1
-      ? `${linePath} L ${linePoints[linePoints.length - 1].x} ${paddingTop + plotHeight} L ${linePoints[0].x} ${paddingTop + plotHeight} Z`
+      ? `${totalPath} L ${linePoints[linePoints.length - 1].x} ${paddingTop + plotHeight} L ${linePoints[0].x} ${paddingTop + plotHeight} Z`
       : ''
 
   const hoveredPoint = hoveredIndex !== null ? linePoints[hoveredIndex] : null
@@ -1089,8 +1128,17 @@ function SinglePeriodLineChartSection({
             <p className="text-xs uppercase tracking-[0.22em] text-[#2ABBAF]">Single Period Trend</p>
             <h3 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">Daily revenue line</h3>
             <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">
-              Daily revenue trend for the selected month.
+              {showSplit
+                ? 'Daily storing vs cashout revenue for the selected month.'
+                : 'Daily revenue trend for the selected month.'}
             </p>
+            {showSplit ? (
+              <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-300">
+                <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#2ABBAF]" />Storing</span>
+                <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#70A9DC]" />Cashout</span>
+                <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-slate-400" />Total</span>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -1120,8 +1168,8 @@ function SinglePeriodLineChartSection({
               <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[320px] w-full">
                 <defs>
                   <linearGradient id="lineFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgba(176,108,255,0.22)" />
-                    <stop offset="100%" stopColor="rgba(93,134,255,0.03)" />
+                    <stop offset="0%" stopColor="rgba(42,187,175,0.22)" />
+                    <stop offset="100%" stopColor="rgba(42,187,175,0.03)" />
                   </linearGradient>
                 </defs>
 
@@ -1141,8 +1189,19 @@ function SinglePeriodLineChartSection({
                   </g>
                 ))}
 
-                {areaPath ? <path d={areaPath} fill="url(#lineFill)" /> : null}
-                {linePath ? <path d={linePath} fill="none" stroke="#2ABBAF" strokeWidth="3" strokeLinecap="round" /> : null}
+                {!showSplit && areaPath ? <path d={areaPath} fill="url(#lineFill)" /> : null}
+                {showSplit && storingPath ? <path d={storingPath} fill="none" stroke="#2ABBAF" strokeWidth="2.5" strokeLinecap="round" /> : null}
+                {showSplit && cashoutPath ? <path d={cashoutPath} fill="none" stroke="#70A9DC" strokeWidth="2.5" strokeLinecap="round" /> : null}
+                {totalPath ? (
+                  <path
+                    d={totalPath}
+                    fill="none"
+                    stroke={showSplit ? '#94a3b8' : '#2ABBAF'}
+                    strokeWidth={showSplit ? 2 : 3}
+                    strokeLinecap="round"
+                    strokeDasharray={showSplit ? '5 5' : undefined}
+                  />
+                ) : null}
 
                 {linePoints.map((point, index) => (
                   <g key={point.id}>
@@ -1150,7 +1209,7 @@ function SinglePeriodLineChartSection({
                       cx={point.x}
                       cy={point.y}
                       r={hoveredIndex === index ? 5 : 4}
-                      fill="#2ABBAF"
+                      fill={showSplit ? '#94a3b8' : '#2ABBAF'}
                       stroke="#071321"
                       strokeWidth="2"
                       onMouseEnter={() => setHoveredIndex(index)}
@@ -1174,7 +1233,15 @@ function SinglePeriodLineChartSection({
               {hoveredPoint ? (
                 <div className="pointer-events-none absolute left-4 top-4 rounded-xl border border-[#7ad7cf]/45 bg-[#061d22]/92 px-3 py-2 shadow-[0_8px_24px_-10px_rgba(42,187,175,0.6)]">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-[#7ad7cf]">{hoveredPoint.shortLabel}</p>
-                  <p className="mt-1 text-sm font-semibold text-white">Revenue: {formatMoney(hoveredPoint.value)}</p>
+                  {showSplit ? (
+                    <>
+                      <p className="mt-1 text-sm text-slate-200">Storing: {formatMoney(hoveredPoint.storing)}</p>
+                      <p className="text-sm text-slate-200">Cashout: {formatMoney(hoveredPoint.cashout)}</p>
+                      <p className="mt-1 text-sm font-semibold text-white">Total: {formatMoney(hoveredPoint.value)}</p>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-sm font-semibold text-white">Revenue: {formatMoney(hoveredPoint.value)}</p>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -1367,8 +1434,9 @@ function SelectedPeriodDailyTable({ periodId, selectedPeriod, chartQuery }) {
   const numericPeriodId = Number(periodId)
   const hasPeriodId = Number.isFinite(numericPeriodId) && numericPeriodId > 0
   const dailyRows = useMemo(() => buildDailyPeriodRows(chartQuery.data, selectedPeriod), [chartQuery.data, selectedPeriod])
-  const totalBtc = dailyRows.reduce((sum, row) => sum + Number(row.btc || 0), 0)
-  const totalRevenue = dailyRows.reduce((sum, row) => sum + Number(row.revenue || 0), 0)
+  const showSplit = dailyRowsHaveSplit(dailyRows) || getPeriodEarningsSplit(selectedPeriod).hasSplit
+  const dailyTotals = useMemo(() => sumDailySplitRows(dailyRows), [dailyRows])
+  const periodSplit = useMemo(() => getPeriodEarningsSplit(selectedPeriod), [selectedPeriod])
   const periodLabel = selectedPeriod ? getPeriodDisplayLabel(selectedPeriod) : 'Selected month'
 
   useEffect(() => {
@@ -1417,7 +1485,11 @@ function SelectedPeriodDailyTable({ periodId, selectedPeriod, chartQuery }) {
         <div>
           <p className="portal-subtitle">Daily Breakdown</p>
           <h3 className="mt-1 text-xl font-semibold text-white">{periodLabel}</h3>
-          <p className="mt-2 text-sm text-slate-400">Day-by-day BTC earned and revenue for the selected month.</p>
+          <p className="mt-2 text-sm text-slate-400">
+            {showSplit
+              ? 'Day-by-day storing vs cashout BTC and revenue for the selected month.'
+              : 'Day-by-day BTC earned and revenue for the selected month.'}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {hasPeriodId ? <span className="portal-chip">{dailyRows.length} days</span> : null}
@@ -1461,31 +1533,88 @@ function SelectedPeriodDailyTable({ periodId, selectedPeriod, chartQuery }) {
                 <thead>
                   <tr>
                     <th>Day</th>
-                    <th>BTC Earned</th>
-                    <th>Revenue</th>
+                    {showSplit ? (
+                      <>
+                        <th>BTC Storing</th>
+                        <th>BTC Cashout</th>
+                        <th>BTC Total</th>
+                        <th>Rev. Storing</th>
+                        <th>Rev. Cashout</th>
+                        <th>Revenue Total</th>
+                      </>
+                    ) : (
+                      <>
+                        <th>BTC Earned</th>
+                        <th>Revenue</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {dailyRows.map((row) => (
                     <tr key={row.id}>
                       <td>{formatDate(row.date)}</td>
-                      <td>{formatBtc(row.btc)}</td>
-                      <td>{formatMoney(row.revenue)}</td>
+                      {showSplit ? (
+                        <>
+                          <td>{formatBtc(row.btcStoring)}</td>
+                          <td>{formatBtc(row.btcCashout)}</td>
+                          <td>{formatBtc(row.btc)}</td>
+                          <td>{formatMoney(row.revenueStoring)}</td>
+                          <td>{formatMoney(row.revenueCashout)}</td>
+                          <td>{formatMoney(row.revenue)}</td>
+                        </>
+                      ) : (
+                        <>
+                          <td>{formatBtc(row.btc)}</td>
+                          <td>{formatMoney(row.revenue)}</td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="portal-metric-block">
-                <span>Month BTC Total</span>
-                <strong>{formatBtc(totalBtc)}</strong>
-              </div>
-              <div className="portal-metric-block">
-                <span>Month Revenue Total</span>
-                <strong>{formatMoney(totalRevenue)}</strong>
-              </div>
+            <div className={`mt-4 grid gap-3 ${showSplit ? 'sm:grid-cols-2 xl:grid-cols-3' : 'sm:grid-cols-2'}`}>
+              {showSplit ? (
+                <>
+                  <div className="portal-metric-block">
+                    <span>Storing BTC</span>
+                    <strong>{formatBtc(periodSplit.hasSplit ? periodSplit.btcStoring : dailyTotals.btcStoring)}</strong>
+                  </div>
+                  <div className="portal-metric-block">
+                    <span>Cashout BTC</span>
+                    <strong>{formatBtc(periodSplit.hasSplit ? periodSplit.btcCashout : dailyTotals.btcCashout)}</strong>
+                  </div>
+                  <div className="portal-metric-block">
+                    <span>Month BTC Total</span>
+                    <strong>{formatBtc(periodSplit.btc || dailyTotals.btc)}</strong>
+                  </div>
+                  <div className="portal-metric-block">
+                    <span>Storing Revenue</span>
+                    <strong>{formatMoney(periodSplit.hasSplit ? periodSplit.revenueStoring : dailyTotals.revenueStoring)}</strong>
+                  </div>
+                  <div className="portal-metric-block">
+                    <span>Cashout Revenue</span>
+                    <strong>{formatMoney(periodSplit.hasSplit ? periodSplit.revenueCashout : dailyTotals.revenueCashout)}</strong>
+                  </div>
+                  <div className="portal-metric-block">
+                    <span>Month Revenue Total</span>
+                    <strong>{formatMoney(periodSplit.revenue || dailyTotals.revenue)}</strong>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="portal-metric-block">
+                    <span>Month BTC Total</span>
+                    <strong>{formatBtc(periodSplit.btc || dailyTotals.btc)}</strong>
+                  </div>
+                  <div className="portal-metric-block">
+                    <span>Month Revenue Total</span>
+                    <strong>{formatMoney(periodSplit.revenue || dailyTotals.revenue)}</strong>
+                  </div>
+                </>
+              )}
             </div>
           </>
         ) : (
@@ -1554,6 +1683,7 @@ function DashboardView({ payload }) {
 
 function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestStore, actionState }) {
   const rows = sortPeriodsForClient(periods, contracts)
+  const showSplit = rows.some((period) => getPeriodEarningsSplit(period).hasSplit)
 
   return (
     <section className="portal-panel rounded-[1.45rem] p-4 sm:p-5">
@@ -1561,7 +1691,9 @@ function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestSt
         <div>
           <p className="portal-subtitle">All Periods</p>
           <h3 className="mt-1 text-xl font-semibold text-white">Monthly earning ledger</h3>
-          <p className="mt-2 text-sm text-slate-400">Review every month, take cashout/store actions when a cycle is completed.</p>
+          <p className="mt-2 text-sm text-slate-400">
+            Review every month with storing vs cashout breakdown. Cashout/store still use combined totals.
+          </p>
         </div>
         <span className="portal-chip">{rows.length} periods</span>
       </div>
@@ -1575,14 +1707,28 @@ function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestSt
                 <th>Period</th>
                 <th>Status</th>
                 <th>Decision</th>
-                <th>BTC Earned</th>
-                <th>Revenue</th>
+                {showSplit ? (
+                  <>
+                    <th>BTC Storing</th>
+                    <th>BTC Cashout</th>
+                    <th>BTC Total</th>
+                    <th>Rev. Storing</th>
+                    <th>Rev. Cashout</th>
+                    <th>Revenue Total</th>
+                  </>
+                ) : (
+                  <>
+                    <th>BTC Earned</th>
+                    <th>Revenue</th>
+                  </>
+                )}
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((period) => {
                 const canAct = ['complete', 'completed'].includes(String(period?.status || '').toLowerCase())
+                const split = getPeriodEarningsSplit(period)
 
                 return (
                   <tr key={period.id}>
@@ -1590,8 +1736,21 @@ function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestSt
                     <td>{getPeriodDisplayLabel(period)}</td>
                     <td><span className="portal-badge">{formatStatusLabel(period.status)}</span></td>
                     <td>{period.client_decision || 'pending'}</td>
-                    <td>{formatBtc(period.total_btc_earned)}</td>
-                    <td>{formatMoney(period.total_revenue)}</td>
+                    {showSplit ? (
+                      <>
+                        <td>{formatBtc(split.btcStoring)}</td>
+                        <td>{formatBtc(split.btcCashout)}</td>
+                        <td>{formatBtc(split.btc)}</td>
+                        <td>{formatMoney(split.revenueStoring)}</td>
+                        <td>{formatMoney(split.revenueCashout)}</td>
+                        <td>{formatMoney(split.revenue)}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td>{formatBtc(split.btc)}</td>
+                        <td>{formatMoney(split.revenue)}</td>
+                      </>
+                    )}
                     <td>
                       {canAct ? (
                         <div className="flex flex-wrap gap-2">

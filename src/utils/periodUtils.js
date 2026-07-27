@@ -419,6 +419,122 @@ export function filterPeriodsByContract(periods = [], contracts = [], contractId
   })
 }
 
+function toFiniteNumber(value, fallback = 0) {
+  const amount = Number(value)
+  return Number.isFinite(amount) ? amount : fallback
+}
+
+function createEmptyDailySplit() {
+  return {
+    btcStoring: 0,
+    btcCashout: 0,
+    btc: 0,
+    revenueStoring: 0,
+    revenueCashout: 0,
+    revenue: 0,
+    btcPrice: null,
+  }
+}
+
+/** Normalize one earning day into storing / cashout / combined totals. */
+export function normalizeEarningSplit(entry = {}) {
+  const hasStoringBtc = entry?.btc_earned_storing != null
+  const hasCashoutBtc = entry?.btc_earned_cashout != null
+  const hasStoringRevenue = entry?.revenue_storing != null
+  const hasCashoutRevenue = entry?.revenue_cashout != null
+
+  const btcStoring = hasStoringBtc
+    ? toFiniteNumber(entry.btc_earned_storing)
+    : toFiniteNumber(entry.btc ?? entry.btc_earned ?? entry.total_btc_earned ?? entry.btc_amount)
+  const btcCashout = hasCashoutBtc ? toFiniteNumber(entry.btc_earned_cashout) : 0
+  const combinedBtc =
+    entry?.btc_earned != null || entry?.btc != null
+      ? toFiniteNumber(entry.btc_earned ?? entry.btc)
+      : btcStoring + btcCashout
+
+  const revenueStoring = hasStoringRevenue
+    ? toFiniteNumber(entry.revenue_storing)
+    : toFiniteNumber(entry.revenue ?? entry.total_revenue ?? entry.amount ?? entry.usd)
+  const revenueCashout = hasCashoutRevenue ? toFiniteNumber(entry.revenue_cashout) : 0
+  const combinedRevenue =
+    entry?.revenue != null
+      ? toFiniteNumber(entry.revenue)
+      : revenueStoring + revenueCashout
+
+  return {
+    btcStoring,
+    btcCashout,
+    btc: combinedBtc,
+    revenueStoring,
+    revenueCashout,
+    revenue: combinedRevenue,
+    btcPrice: entry?.btc_price != null ? toFiniteNumber(entry.btc_price, null) : null,
+    hasSplit: hasStoringBtc || hasCashoutBtc || hasStoringRevenue || hasCashoutRevenue,
+  }
+}
+
+/** Period-level storing / cashout / combined totals. */
+export function getPeriodEarningsSplit(period = {}) {
+  const btcStoring = toFiniteNumber(period?.total_btc_earned_storing)
+  const btcCashout = toFiniteNumber(period?.total_btc_earned_cashout)
+  const revenueStoring = toFiniteNumber(period?.total_revenue_storing)
+  const revenueCashout = toFiniteNumber(period?.total_revenue_cashout)
+  const hasSplit =
+    period?.total_btc_earned_storing != null ||
+    period?.total_btc_earned_cashout != null ||
+    period?.total_revenue_storing != null ||
+    period?.total_revenue_cashout != null
+
+  return {
+    btcStoring,
+    btcCashout,
+    btc: toFiniteNumber(period?.total_btc_earned, btcStoring + btcCashout),
+    revenueStoring,
+    revenueCashout,
+    revenue: toFiniteNumber(period?.total_revenue, revenueStoring + revenueCashout),
+    hasSplit,
+  }
+}
+
+/** Dashboard stats storing / cashout / combined totals. */
+export function getDashboardEarningsSplit(stats = {}) {
+  const btcStoring = toFiniteNumber(stats?.total_btc_earned_storing)
+  const btcCashout = toFiniteNumber(stats?.total_btc_earned_cashout)
+  const revenueStoring = toFiniteNumber(stats?.total_revenue_storing)
+  const revenueCashout = toFiniteNumber(stats?.total_revenue_cashout)
+  const hasSplit =
+    stats?.total_btc_earned_storing != null ||
+    stats?.total_btc_earned_cashout != null ||
+    stats?.total_revenue_storing != null ||
+    stats?.total_revenue_cashout != null
+
+  return {
+    btcStoring,
+    btcCashout,
+    btc: toFiniteNumber(stats?.total_btc_earned, btcStoring + btcCashout),
+    revenueStoring,
+    revenueCashout,
+    revenue: toFiniteNumber(stats?.total_revenue, revenueStoring + revenueCashout),
+    storingMachines: toFiniteNumber(stats?.storing_machines),
+    cashoutMachines: toFiniteNumber(stats?.cashout_machines),
+    hasSplit,
+  }
+}
+
+export function sumDailySplitRows(rows = []) {
+  return (Array.isArray(rows) ? rows : []).reduce(
+    (totals, row) => ({
+      btcStoring: totals.btcStoring + toFiniteNumber(row?.btcStoring),
+      btcCashout: totals.btcCashout + toFiniteNumber(row?.btcCashout),
+      btc: totals.btc + toFiniteNumber(row?.btc),
+      revenueStoring: totals.revenueStoring + toFiniteNumber(row?.revenueStoring),
+      revenueCashout: totals.revenueCashout + toFiniteNumber(row?.revenueCashout),
+      revenue: totals.revenue + toFiniteNumber(row?.revenue),
+    }),
+    createEmptyDailySplit()
+  )
+}
+
 function buildDailyRowsFromTransactions(transactions = []) {
   const byDate = new Map()
 
@@ -442,14 +558,19 @@ function buildDailyRowsFromTransactions(transactions = []) {
     }
 
     const key = parsed.toISOString().slice(0, 10)
+    const split = normalizeEarningSplit(entry)
 
     if (!byDate.has(key)) {
-      byDate.set(key, { btc: 0, revenue: 0 })
+      byDate.set(key, createEmptyDailySplit())
     }
 
     const row = byDate.get(key)
-    row.btc += Number(entry?.btc_amount ?? entry?.btc ?? entry?.total_btc_earned ?? 0)
-    row.revenue += Number(entry?.revenue ?? entry?.total_revenue ?? entry?.amount ?? entry?.usd ?? 0)
+    row.btcStoring += split.btcStoring
+    row.btcCashout += split.btcCashout
+    row.btc += split.btc
+    row.revenueStoring += split.revenueStoring
+    row.revenueCashout += split.revenueCashout
+    row.revenue += split.revenue
   })
 
   return Array.from(byDate.entries())
@@ -457,8 +578,8 @@ function buildDailyRowsFromTransactions(transactions = []) {
     .map(([date, values], index) => ({
       id: `tx-day-${index}`,
       date,
-      btc: Number.isFinite(values.btc) ? values.btc : 0,
-      revenue: Number.isFinite(values.revenue) ? values.revenue : 0,
+      ...values,
+      hasSplit: values.btcStoring > 0 || values.btcCashout > 0 || values.revenueStoring > 0 || values.revenueCashout > 0,
     }))
 }
 
@@ -477,8 +598,8 @@ function buildDailyRowsFromPeriodRange(selectedPeriod) {
     rows.push({
       id: `range-day-${rows.length}`,
       date: cursor.toISOString().slice(0, 10),
-      btc: 0,
-      revenue: 0,
+      ...createEmptyDailySplit(),
+      hasSplit: false,
     })
     cursor.setDate(cursor.getDate() + 1)
   }
@@ -486,13 +607,23 @@ function buildDailyRowsFromPeriodRange(selectedPeriod) {
   return rows
 }
 
+function readChartSeries(chart, keys) {
+  for (const key of keys) {
+    if (Array.isArray(chart?.[key])) {
+      return chart[key]
+    }
+  }
+
+  return []
+}
+
 export function buildMonthlyStatusSeriesFromPeriods(periods = []) {
   return (Array.isArray(periods) ? periods : []).map((period, index) => {
-    const revenue = Number(period?.total_revenue || 0)
+    const split = getPeriodEarningsSplit(period)
     const status = String(period?.status || '').toLowerCase()
     const decision = String(period?.client_decision || '').toLowerCase()
     let cashedOut = 0
-    let stored = Number.isFinite(revenue) ? revenue : 0
+    let stored = split.revenue
 
     if (status === 'cashed_out' || status === 'paid' || decision === 'cashed_out' || decision === 'cashout') {
       cashedOut = stored
@@ -504,6 +635,10 @@ export function buildMonthlyStatusSeriesFromPeriods(periods = []) {
       label: getPeriodDisplayLabel(period),
       cashedOut,
       stored,
+      revenueStoring: split.revenueStoring,
+      revenueCashout: split.revenueCashout,
+      btcStoring: split.btcStoring,
+      btcCashout: split.btcCashout,
     }
   })
 }
@@ -513,29 +648,50 @@ export function buildDailyPeriodRows(chartPayload, selectedPeriod = null) {
   const dailyEarnings = Array.isArray(chartPayload?.dailyEarnings) ? chartPayload.dailyEarnings : []
 
   if (dailyEarnings.length) {
-    return dailyEarnings.map((entry, index) => ({
-      id: entry?.id || entry?.date || entry?.day || `day-${index}`,
-      date: entry?.date || entry?.day || entry?.label || entry?.earned_at || entry?.earnedAt || null,
-      btc: Number(entry?.btc ?? entry?.btc_earned ?? entry?.total_btc_earned ?? entry?.btc_amount ?? 0),
-      revenue: Number(entry?.revenue ?? entry?.total_revenue ?? entry?.amount ?? entry?.usd ?? 0),
-    }))
+    return dailyEarnings.map((entry, index) => {
+      const split = normalizeEarningSplit(entry)
+
+      return {
+        id: entry?.id || entry?.date || entry?.day || `day-${index}`,
+        date: entry?.date || entry?.day || entry?.label || entry?.earned_at || entry?.earnedAt || null,
+        ...split,
+      }
+    })
   }
 
   const labels = Array.isArray(chart?.labels) ? chart.labels : []
-  const dailyRevenue = Array.isArray(chart?.daily_revenue) ? chart.daily_revenue : []
-  const dailyBtc = Array.isArray(chart?.daily_btc)
-    ? chart.daily_btc
-    : Array.isArray(chart?.daily_btc_earned)
-      ? chart.daily_btc_earned
-      : []
+  const dailyRevenue = readChartSeries(chart, ['daily_revenue'])
+  const dailyRevenueStoring = readChartSeries(chart, ['daily_revenue_storing'])
+  const dailyRevenueCashout = readChartSeries(chart, ['daily_revenue_cashout'])
+  const dailyBtc = readChartSeries(chart, ['daily_btc', 'daily_btc_earned'])
+  const dailyBtcStoring = readChartSeries(chart, ['daily_btc_storing'])
+  const dailyBtcCashout = readChartSeries(chart, ['daily_btc_cashout'])
 
   if (labels.length) {
-    return labels.map((label, index) => ({
-      id: `day-${index}`,
-      date: label,
-      btc: Number(dailyBtc[index] ?? 0),
-      revenue: Number(dailyRevenue[index] ?? 0),
-    }))
+    return labels.map((label, index) => {
+      const btcStoring = toFiniteNumber(dailyBtcStoring[index])
+      const btcCashout = toFiniteNumber(dailyBtcCashout[index])
+      const revenueStoring = toFiniteNumber(dailyRevenueStoring[index])
+      const revenueCashout = toFiniteNumber(dailyRevenueCashout[index])
+      const hasSplit =
+        dailyBtcStoring.length > 0 ||
+        dailyBtcCashout.length > 0 ||
+        dailyRevenueStoring.length > 0 ||
+        dailyRevenueCashout.length > 0
+
+      return {
+        id: `day-${index}`,
+        date: label,
+        btcStoring,
+        btcCashout,
+        btc: hasSplit ? btcStoring + btcCashout : toFiniteNumber(dailyBtc[index]),
+        revenueStoring,
+        revenueCashout,
+        revenue: hasSplit ? revenueStoring + revenueCashout : toFiniteNumber(dailyRevenue[index]),
+        btcPrice: null,
+        hasSplit,
+      }
+    })
   }
 
   const transactionRows = buildDailyRowsFromTransactions(chartPayload?.transactions)
@@ -550,6 +706,12 @@ export function buildDailyRevenueSeriesFromPayload(chartPayload, selectedPeriod 
   return buildDailyPeriodRows(chartPayload, selectedPeriod).map((row, index) => ({
     id: row.id || `daily-${index}`,
     label: row.date,
-    value: Number(row.revenue || 0),
+    storing: toFiniteNumber(row.revenueStoring),
+    cashout: toFiniteNumber(row.revenueCashout),
+    value: toFiniteNumber(row.revenue),
   }))
+}
+
+export function dailyRowsHaveSplit(rows = []) {
+  return (Array.isArray(rows) ? rows : []).some((row) => row?.hasSplit)
 }
