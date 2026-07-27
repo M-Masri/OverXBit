@@ -48,6 +48,7 @@ import {
 } from '../services/overxApi'
 import { clearStoredToken } from '../services/sessionStorage'
 import ContractPeriodExplorer from '../components/ContractPeriodExplorer'
+import EarningsSplitSummary from '../components/EarningsSplitSummary'
 import PortalPeriodSelect from '../components/PortalPeriodSelect'
 import {
   buildDailyPeriodRows,
@@ -342,21 +343,28 @@ function getOverviewCards(module, section, payload, user) {
   if (section.slug === 'dashboard') {
     const stats = payload.dashboard?.stats || {}
     const earnings = getDashboardEarningsSplit(stats)
-    const revenueToday =
-      stats.revenue_today ?? stats.today_revenue ?? stats.total_revenue_today ?? 0
 
     return [
-      { label: 'Stored BTC', value: formatBtc(stats.stored_balance_btc), hint: 'Current reserve', accent: true },
       {
-        label: 'Storing Machines',
-        value: String(earnings.storingMachines || stats.storing_machines || 0),
-        hint: earnings.hasSplit ? `BTC ${formatBtc(earnings.btcStoring).replace(' BTC', '')}` : 'Reserved fleet',
+        label: 'Earned as Storing',
+        value: formatBtc(earnings.btcStoring),
+        hint: `${formatMoney(earnings.revenueStoring)} · ${earnings.storingMachines || stats.storing_machines || 0} machines`,
+        accent: true,
       },
-      { label: 'Revenue Today', value: formatMoney(revenueToday), hint: "Today's generated revenue" },
       {
-        label: 'Cashout Machines',
-        value: String(earnings.cashoutMachines || stats.cashout_machines || 0),
-        hint: earnings.hasSplit ? `BTC ${formatBtc(earnings.btcCashout).replace(' BTC', '')}` : 'Payout fleet',
+        label: 'Earned as Cashout',
+        value: formatBtc(earnings.btcCashout),
+        hint: `${formatMoney(earnings.revenueCashout)} · ${earnings.cashoutMachines || stats.cashout_machines || 0} machines`,
+      },
+      {
+        label: 'Combined BTC',
+        value: formatBtc(earnings.btc),
+        hint: 'Storing + cashout total',
+      },
+      {
+        label: 'Combined Revenue',
+        value: formatMoney(earnings.revenue),
+        hint: 'Storing + cashout total',
       },
     ]
   }
@@ -372,20 +380,27 @@ function getOverviewCards(module, section, payload, user) {
           revenue: acc.revenue + split.revenue,
           btcStoring: acc.btcStoring + split.btcStoring,
           btcCashout: acc.btcCashout + split.btcCashout,
+          revenueStoring: acc.revenueStoring + split.revenueStoring,
+          revenueCashout: acc.revenueCashout + split.revenueCashout,
         }
       },
-      { btc: 0, revenue: 0, btcStoring: 0, btcCashout: 0 }
+      { btc: 0, revenue: 0, btcStoring: 0, btcCashout: 0, revenueStoring: 0, revenueCashout: 0 }
     )
 
     return [
-      { label: 'Listed Periods', value: String(payload.periodsMeta?.total || periods.length || 0), hint: 'Visible in the ledger', accent: true },
-      { label: 'Ready To Act', value: String(pendingPeriods.length), hint: 'Client decision window' },
       {
-        label: 'Total BTC Earned',
-        value: formatBtc(totals.btc),
-        hint: `Storing ${formatBtc(totals.btcStoring).replace(' BTC', '')} · Cashout ${formatBtc(totals.btcCashout).replace(' BTC', '')}`,
+        label: 'Earned as Storing',
+        value: formatBtc(totals.btcStoring),
+        hint: formatMoney(totals.revenueStoring),
+        accent: true,
       },
-      { label: 'Total Revenue', value: formatMoney(totals.revenue), hint: 'Across fetched periods' },
+      {
+        label: 'Earned as Cashout',
+        value: formatBtc(totals.btcCashout),
+        hint: formatMoney(totals.revenueCashout),
+      },
+      { label: 'Ready To Act', value: String(pendingPeriods.length), hint: 'Client decision window' },
+      { label: 'Listed Periods', value: String(payload.periodsMeta?.total || periods.length || 0), hint: 'Visible in the ledger' },
     ]
   }
 
@@ -1434,9 +1449,17 @@ function SelectedPeriodDailyTable({ periodId, selectedPeriod, chartQuery }) {
   const numericPeriodId = Number(periodId)
   const hasPeriodId = Number.isFinite(numericPeriodId) && numericPeriodId > 0
   const dailyRows = useMemo(() => buildDailyPeriodRows(chartQuery.data, selectedPeriod), [chartQuery.data, selectedPeriod])
-  const showSplit = dailyRowsHaveSplit(dailyRows) || getPeriodEarningsSplit(selectedPeriod).hasSplit
   const dailyTotals = useMemo(() => sumDailySplitRows(dailyRows), [dailyRows])
   const periodSplit = useMemo(() => getPeriodEarningsSplit(selectedPeriod), [selectedPeriod])
+  const preferPeriod = periodSplit.hasSplit
+  const displaySplit = {
+    btcStoring: preferPeriod ? periodSplit.btcStoring : dailyTotals.btcStoring || periodSplit.btcStoring,
+    btcCashout: preferPeriod ? periodSplit.btcCashout : dailyTotals.btcCashout || periodSplit.btcCashout,
+    revenueStoring: preferPeriod ? periodSplit.revenueStoring : dailyTotals.revenueStoring || periodSplit.revenueStoring,
+    revenueCashout: preferPeriod ? periodSplit.revenueCashout : dailyTotals.revenueCashout || periodSplit.revenueCashout,
+    btcTotal: periodSplit.btc || dailyTotals.btc,
+    revenueTotal: periodSplit.revenue || dailyTotals.revenue,
+  }
   const periodLabel = selectedPeriod ? getPeriodDisplayLabel(selectedPeriod) : 'Selected month'
 
   useEffect(() => {
@@ -1486,9 +1509,7 @@ function SelectedPeriodDailyTable({ periodId, selectedPeriod, chartQuery }) {
           <p className="portal-subtitle">Daily Breakdown</p>
           <h3 className="mt-1 text-xl font-semibold text-white">{periodLabel}</h3>
           <p className="mt-2 text-sm text-slate-400">
-            {showSplit
-              ? 'Day-by-day storing vs cashout BTC and revenue for the selected month.'
-              : 'Day-by-day BTC earned and revenue for the selected month.'}
+            See exactly what storing machines earned versus cashout machines, day by day.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1527,96 +1548,47 @@ function SelectedPeriodDailyTable({ periodId, selectedPeriod, chartQuery }) {
 
       {hasPeriodId && !chartQuery.isLoading && !chartQuery.isFetching && !chartQuery.error ? (
         dailyRows.length ? (
-          <>
-            <div className="portal-table-shell mt-4">
+          <div className="mt-5 space-y-5">
+            <EarningsSplitSummary
+              title="What you earned this month"
+              description="Storing machines keep mining balance. Cashout machines contribute toward payout decisions."
+              btcStoring={displaySplit.btcStoring}
+              btcCashout={displaySplit.btcCashout}
+              revenueStoring={displaySplit.revenueStoring}
+              revenueCashout={displaySplit.revenueCashout}
+              btcTotal={displaySplit.btcTotal}
+              revenueTotal={displaySplit.revenueTotal}
+            />
+
+            <div className="portal-table-shell">
               <table className="portal-data-table">
                 <thead>
                   <tr>
                     <th>Day</th>
-                    {showSplit ? (
-                      <>
-                        <th>BTC Storing</th>
-                        <th>BTC Cashout</th>
-                        <th>BTC Total</th>
-                        <th>Rev. Storing</th>
-                        <th>Rev. Cashout</th>
-                        <th>Revenue Total</th>
-                      </>
-                    ) : (
-                      <>
-                        <th>BTC Earned</th>
-                        <th>Revenue</th>
-                      </>
-                    )}
+                    <th>Storing BTC</th>
+                    <th>Cashout BTC</th>
+                    <th>Total BTC</th>
+                    <th>Storing $</th>
+                    <th>Cashout $</th>
+                    <th>Total $</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dailyRows.map((row) => (
                     <tr key={row.id}>
                       <td>{formatDate(row.date)}</td>
-                      {showSplit ? (
-                        <>
-                          <td>{formatBtc(row.btcStoring)}</td>
-                          <td>{formatBtc(row.btcCashout)}</td>
-                          <td>{formatBtc(row.btc)}</td>
-                          <td>{formatMoney(row.revenueStoring)}</td>
-                          <td>{formatMoney(row.revenueCashout)}</td>
-                          <td>{formatMoney(row.revenue)}</td>
-                        </>
-                      ) : (
-                        <>
-                          <td>{formatBtc(row.btc)}</td>
-                          <td>{formatMoney(row.revenue)}</td>
-                        </>
-                      )}
+                      <td className="text-[#7ad7cf]">{formatBtc(row.btcStoring)}</td>
+                      <td className="text-[#9ec5e8]">{formatBtc(row.btcCashout)}</td>
+                      <td>{formatBtc(row.btc)}</td>
+                      <td className="text-[#7ad7cf]">{formatMoney(row.revenueStoring)}</td>
+                      <td className="text-[#9ec5e8]">{formatMoney(row.revenueCashout)}</td>
+                      <td>{formatMoney(row.revenue)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-
-            <div className={`mt-4 grid gap-3 ${showSplit ? 'sm:grid-cols-2 xl:grid-cols-3' : 'sm:grid-cols-2'}`}>
-              {showSplit ? (
-                <>
-                  <div className="portal-metric-block">
-                    <span>Storing BTC</span>
-                    <strong>{formatBtc(periodSplit.hasSplit ? periodSplit.btcStoring : dailyTotals.btcStoring)}</strong>
-                  </div>
-                  <div className="portal-metric-block">
-                    <span>Cashout BTC</span>
-                    <strong>{formatBtc(periodSplit.hasSplit ? periodSplit.btcCashout : dailyTotals.btcCashout)}</strong>
-                  </div>
-                  <div className="portal-metric-block">
-                    <span>Month BTC Total</span>
-                    <strong>{formatBtc(periodSplit.btc || dailyTotals.btc)}</strong>
-                  </div>
-                  <div className="portal-metric-block">
-                    <span>Storing Revenue</span>
-                    <strong>{formatMoney(periodSplit.hasSplit ? periodSplit.revenueStoring : dailyTotals.revenueStoring)}</strong>
-                  </div>
-                  <div className="portal-metric-block">
-                    <span>Cashout Revenue</span>
-                    <strong>{formatMoney(periodSplit.hasSplit ? periodSplit.revenueCashout : dailyTotals.revenueCashout)}</strong>
-                  </div>
-                  <div className="portal-metric-block">
-                    <span>Month Revenue Total</span>
-                    <strong>{formatMoney(periodSplit.revenue || dailyTotals.revenue)}</strong>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="portal-metric-block">
-                    <span>Month BTC Total</span>
-                    <strong>{formatBtc(periodSplit.btc || dailyTotals.btc)}</strong>
-                  </div>
-                  <div className="portal-metric-block">
-                    <span>Month Revenue Total</span>
-                    <strong>{formatMoney(periodSplit.revenue || dailyTotals.revenue)}</strong>
-                  </div>
-                </>
-              )}
-            </div>
-          </>
+          </div>
         ) : (
           <div className="mt-4">
             <EmptyState
@@ -1683,7 +1655,6 @@ function DashboardView({ payload }) {
 
 function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestStore, actionState }) {
   const rows = sortPeriodsForClient(periods, contracts)
-  const showSplit = rows.some((period) => getPeriodEarningsSplit(period).hasSplit)
 
   return (
     <section className="portal-panel rounded-[1.45rem] p-4 sm:p-5">
@@ -1692,7 +1663,7 @@ function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestSt
           <p className="portal-subtitle">All Periods</p>
           <h3 className="mt-1 text-xl font-semibold text-white">Monthly earning ledger</h3>
           <p className="mt-2 text-sm text-slate-400">
-            Review every month with storing vs cashout breakdown. Cashout/store still use combined totals.
+            Each month shows storing earnings and cashout earnings side by side. Actions still use the combined total.
           </p>
         </div>
         <span className="portal-chip">{rows.length} periods</span>
@@ -1706,22 +1677,9 @@ function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestSt
                 <th>Contract</th>
                 <th>Period</th>
                 <th>Status</th>
-                <th>Decision</th>
-                {showSplit ? (
-                  <>
-                    <th>BTC Storing</th>
-                    <th>BTC Cashout</th>
-                    <th>BTC Total</th>
-                    <th>Rev. Storing</th>
-                    <th>Rev. Cashout</th>
-                    <th>Revenue Total</th>
-                  </>
-                ) : (
-                  <>
-                    <th>BTC Earned</th>
-                    <th>Revenue</th>
-                  </>
-                )}
+                <th>Earned as Storing</th>
+                <th>Earned as Cashout</th>
+                <th>Combined Total</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -1733,24 +1691,23 @@ function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestSt
                 return (
                   <tr key={period.id}>
                     <td>{getPeriodContractGroup(period, contracts) || '—'}</td>
-                    <td>{getPeriodDisplayLabel(period)}</td>
+                    <td>
+                      <p className="font-medium text-white">{getPeriodDisplayLabel(period)}</p>
+                      <p className="mt-1 text-xs text-slate-500">{period.client_decision || 'pending'}</p>
+                    </td>
                     <td><span className="portal-badge">{formatStatusLabel(period.status)}</span></td>
-                    <td>{period.client_decision || 'pending'}</td>
-                    {showSplit ? (
-                      <>
-                        <td>{formatBtc(split.btcStoring)}</td>
-                        <td>{formatBtc(split.btcCashout)}</td>
-                        <td>{formatBtc(split.btc)}</td>
-                        <td>{formatMoney(split.revenueStoring)}</td>
-                        <td>{formatMoney(split.revenueCashout)}</td>
-                        <td>{formatMoney(split.revenue)}</td>
-                      </>
-                    ) : (
-                      <>
-                        <td>{formatBtc(split.btc)}</td>
-                        <td>{formatMoney(split.revenue)}</td>
-                      </>
-                    )}
+                    <td>
+                      <p className="font-medium text-[#7ad7cf]">{formatBtc(split.btcStoring)}</p>
+                      <p className="mt-1 text-xs text-slate-400">{formatMoney(split.revenueStoring)}</p>
+                    </td>
+                    <td>
+                      <p className="font-medium text-[#9ec5e8]">{formatBtc(split.btcCashout)}</p>
+                      <p className="mt-1 text-xs text-slate-400">{formatMoney(split.revenueCashout)}</p>
+                    </td>
+                    <td>
+                      <p className="font-semibold text-white">{formatBtc(split.btc)}</p>
+                      <p className="mt-1 text-xs text-slate-400">{formatMoney(split.revenue)}</p>
+                    </td>
                     <td>
                       {canAct ? (
                         <div className="flex flex-wrap gap-2">
@@ -2595,6 +2552,46 @@ function ClientPortalPage() {
     }
   }, [isTradingModule, payload, periodStatusOverrides, tradingPeriodStatusOverrides])
   const overviewCards = getOverviewCards(activeModule, activeSection, payload, user)
+  const miningEarningsOverview = useMemo(() => {
+    if (!isMiningModule || !['dashboard', 'periods'].includes(activeSection.slug)) {
+      return null
+    }
+
+    if (activeSection.slug === 'dashboard') {
+      const split = getDashboardEarningsSplit(payload?.dashboard?.stats)
+      return {
+        title: 'Account earnings overview',
+        description: 'Clear view of what your storing machines earned versus what your cashout machines earned.',
+        ...split,
+        storingMachines: split.storingMachines,
+        cashoutMachines: split.cashoutMachines,
+      }
+    }
+
+    const periods = payloadWithPeriodOverrides.periods || []
+    const totals = periods.reduce(
+      (acc, period) => {
+        const split = getPeriodEarningsSplit(period)
+        return {
+          btcStoring: acc.btcStoring + split.btcStoring,
+          btcCashout: acc.btcCashout + split.btcCashout,
+          revenueStoring: acc.revenueStoring + split.revenueStoring,
+          revenueCashout: acc.revenueCashout + split.revenueCashout,
+          btc: acc.btc + split.btc,
+          revenue: acc.revenue + split.revenue,
+        }
+      },
+      { btcStoring: 0, btcCashout: 0, revenueStoring: 0, revenueCashout: 0, btc: 0, revenue: 0 }
+    )
+
+    return {
+      title: 'Periods earnings overview',
+      description: 'Totals across the periods listed below, split by storing machines and cashout machines.',
+      ...totals,
+      storingMachines: null,
+      cashoutMachines: null,
+    }
+  }, [activeModule, activeSection.slug, isMiningModule, payload?.dashboard?.stats, payloadWithPeriodOverrides.periods])
   const insightRows = getInsightRows(activeModule, activeSection, payloadWithPeriodOverrides, user)
 
   function handleModuleChange(nextModule) {
@@ -3027,6 +3024,23 @@ function ClientPortalPage() {
                 <OverviewCard key={item.label} item={item} />
               ))}
             </section>
+
+            {miningEarningsOverview ? (
+              <section className="portal-panel mt-6 rounded-[1.45rem] p-4 sm:p-6">
+                <EarningsSplitSummary
+                  title={miningEarningsOverview.title}
+                  description={miningEarningsOverview.description}
+                  btcStoring={miningEarningsOverview.btcStoring}
+                  btcCashout={miningEarningsOverview.btcCashout}
+                  revenueStoring={miningEarningsOverview.revenueStoring}
+                  revenueCashout={miningEarningsOverview.revenueCashout}
+                  btcTotal={miningEarningsOverview.btc}
+                  revenueTotal={miningEarningsOverview.revenue}
+                  storingMachines={miningEarningsOverview.storingMachines}
+                  cashoutMachines={miningEarningsOverview.cashoutMachines}
+                />
+              </section>
+            ) : null}
 
             {activeSection.slug === 'dashboard' && isMiningModule ? (
               <section className="mt-6 grid gap-6">

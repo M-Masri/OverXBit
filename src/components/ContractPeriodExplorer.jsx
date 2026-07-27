@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import { useDownloadPeriodReportMutation } from '../services/overxApi'
 import { selectToken } from '../services/authSlice'
 import PortalContractSelect from './PortalContractSelect'
+import EarningsSplitSummary, { STORING_COLOR, CASHOUT_COLOR } from './EarningsSplitSummary'
 import {
   buildDailyPeriodRows,
   buildDailyRevenueSeriesFromPayload,
@@ -14,8 +15,6 @@ import {
   sumDailySplitRows,
 } from '../utils/periodUtils'
 
-const STORING_COLOR = '#2ABBAF'
-const CASHOUT_COLOR = '#70A9DC'
 const TOTAL_COLOR = '#94a3b8'
 
 function formatMoney(value) {
@@ -90,14 +89,16 @@ function buildSmoothLinePath(points) {
   return path
 }
 
-function MetricBlock({ label, value, hint }) {
-  return (
-    <div className="portal-metric-block">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {hint ? <p className="mt-1 text-[11px] text-slate-500">{hint}</p> : null}
-    </div>
-  )
+function resolveDisplaySplit(periodSplit, dailyTotals) {
+  const preferPeriod = periodSplit?.hasSplit
+  return {
+    btcStoring: preferPeriod ? periodSplit.btcStoring : dailyTotals.btcStoring || periodSplit.btcStoring,
+    btcCashout: preferPeriod ? periodSplit.btcCashout : dailyTotals.btcCashout || periodSplit.btcCashout,
+    revenueStoring: preferPeriod ? periodSplit.revenueStoring : dailyTotals.revenueStoring || periodSplit.revenueStoring,
+    revenueCashout: preferPeriod ? periodSplit.revenueCashout : dailyTotals.revenueCashout || periodSplit.revenueCashout,
+    btcTotal: periodSplit.btc || dailyTotals.btc,
+    revenueTotal: periodSplit.revenue || dailyTotals.revenue,
+  }
 }
 
 export default function ContractPeriodExplorer({
@@ -136,9 +137,9 @@ export default function ContractPeriodExplorer({
     [chartQuery.data, selectedPeriod]
   )
 
-  const showSplit = dailyRowsHaveSplit(dailyRows) || getPeriodEarningsSplit(selectedPeriod).hasSplit
   const dailyTotals = useMemo(() => sumDailySplitRows(dailyRows), [dailyRows])
   const periodSplit = useMemo(() => getPeriodEarningsSplit(selectedPeriod), [selectedPeriod])
+  const displaySplit = useMemo(() => resolveDisplaySplit(periodSplit, dailyTotals), [dailyTotals, periodSplit])
   const hasPeriodId = Number.isFinite(Number(periodId)) && Number(periodId) > 0
   const usingRangeFallback =
     hasPeriodId &&
@@ -149,6 +150,7 @@ export default function ContractPeriodExplorer({
     points.every((point) => Number(point.value || 0) === 0) &&
     !chartQuery.data?.dailyEarnings?.length &&
     !chartQuery.data?.chart?.labels?.length
+  const chartHasSplit = dailyRowsHaveSplit(dailyRows)
 
   useEffect(() => {
     setReportHref('#')
@@ -322,10 +324,21 @@ export default function ContractPeriodExplorer({
             </p>
           ) : null}
 
+          <EarningsSplitSummary
+            title={`${getPeriodDisplayLabel(selectedPeriod)} earnings`}
+            description="Exactly how much this month earned from storing machines versus cashout machines."
+            btcStoring={displaySplit.btcStoring}
+            btcCashout={displaySplit.btcCashout}
+            revenueStoring={displaySplit.revenueStoring}
+            revenueCashout={displaySplit.revenueCashout}
+            btcTotal={displaySplit.btcTotal}
+            revenueTotal={displaySplit.revenueTotal}
+          />
+
           {linePoints.length ? (
             <div className="relative rounded-[1.3rem] border border-white/12 bg-[rgba(255,255,255,0.04)] p-3 sm:p-4">
               <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-slate-300">
-                {showSplit ? (
+                {chartHasSplit ? (
                   <>
                     <span className="inline-flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ background: STORING_COLOR }} />
@@ -338,7 +351,7 @@ export default function ContractPeriodExplorer({
                   </>
                 ) : null}
                 <span className="inline-flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: showSplit ? TOTAL_COLOR : STORING_COLOR }} />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: chartHasSplit ? TOTAL_COLOR : STORING_COLOR }} />
                   Total revenue
                 </span>
               </div>
@@ -367,21 +380,21 @@ export default function ContractPeriodExplorer({
                   </g>
                 ))}
 
-                {!showSplit && areaPath ? <path d={areaPath} fill="url(#contractLineFill)" /> : null}
-                {showSplit && storingPath ? (
+                {!chartHasSplit && areaPath ? <path d={areaPath} fill="url(#contractLineFill)" /> : null}
+                {chartHasSplit && storingPath ? (
                   <path d={storingPath} fill="none" stroke={STORING_COLOR} strokeWidth="2.5" strokeLinecap="round" />
                 ) : null}
-                {showSplit && cashoutPath ? (
+                {chartHasSplit && cashoutPath ? (
                   <path d={cashoutPath} fill="none" stroke={CASHOUT_COLOR} strokeWidth="2.5" strokeLinecap="round" />
                 ) : null}
                 {totalPath ? (
                   <path
                     d={totalPath}
                     fill="none"
-                    stroke={showSplit ? TOTAL_COLOR : STORING_COLOR}
-                    strokeWidth={showSplit ? 2 : 3}
+                    stroke={chartHasSplit ? TOTAL_COLOR : STORING_COLOR}
+                    strokeWidth={chartHasSplit ? 2 : 3}
                     strokeLinecap="round"
-                    strokeDasharray={showSplit ? '5 5' : undefined}
+                    strokeDasharray={chartHasSplit ? '5 5' : undefined}
                   />
                 ) : null}
 
@@ -391,7 +404,7 @@ export default function ContractPeriodExplorer({
                       cx={point.x}
                       cy={point.y}
                       r={hoveredIndex === index ? 5 : 3.5}
-                      fill={showSplit ? TOTAL_COLOR : STORING_COLOR}
+                      fill={chartHasSplit ? TOTAL_COLOR : STORING_COLOR}
                       stroke="#071321"
                       strokeWidth="2"
                       onMouseEnter={() => setHoveredIndex(index)}
@@ -409,7 +422,7 @@ export default function ContractPeriodExplorer({
               {hoveredPoint ? (
                 <div className="pointer-events-none absolute left-4 top-4 rounded-xl border border-[#7ad7cf]/45 bg-[#061d22]/92 px-3 py-2 shadow-[0_8px_24px_-10px_rgba(42,187,175,0.6)]">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-[#7ad7cf]">{hoveredPoint.shortLabel}</p>
-                  {showSplit ? (
+                  {chartHasSplit ? (
                     <>
                       <p className="mt-1 text-sm text-slate-200">Storing: {formatMoney(hoveredPoint.storing)}</p>
                       <p className="text-sm text-slate-200">Cashout: {formatMoney(hoveredPoint.cashout)}</p>
@@ -425,92 +438,42 @@ export default function ContractPeriodExplorer({
 
           {dailyRows.length ? (
             <>
+              <div>
+                <h5 className="text-sm font-semibold text-white">Day-by-day detail</h5>
+                <p className="mt-1 text-sm text-slate-400">Each day broken into storing machines vs cashout machines.</p>
+              </div>
               <div className="portal-table-shell">
                 <table className="portal-data-table">
                   <thead>
                     <tr>
                       <th>Day</th>
-                      {showSplit ? (
-                        <>
-                          <th>BTC Storing</th>
-                          <th>BTC Cashout</th>
-                          <th>BTC Total</th>
-                          <th>Rev. Storing</th>
-                          <th>Rev. Cashout</th>
-                          <th>Revenue Total</th>
-                        </>
-                      ) : (
-                        <>
-                          <th>BTC Earned</th>
-                          <th>Revenue</th>
-                        </>
-                      )}
+                      <th>Storing BTC</th>
+                      <th>Cashout BTC</th>
+                      <th>Total BTC</th>
+                      <th>Storing $</th>
+                      <th>Cashout $</th>
+                      <th>Total $</th>
                     </tr>
                   </thead>
                   <tbody>
                     {dailyRows.map((row) => (
                       <tr key={row.id}>
                         <td>{formatDate(row.date)}</td>
-                        {showSplit ? (
-                          <>
-                            <td>{formatBtc(row.btcStoring)}</td>
-                            <td>{formatBtc(row.btcCashout)}</td>
-                            <td>{formatBtc(row.btc)}</td>
-                            <td>{formatMoney(row.revenueStoring)}</td>
-                            <td>{formatMoney(row.revenueCashout)}</td>
-                            <td>{formatMoney(row.revenue)}</td>
-                          </>
-                        ) : (
-                          <>
-                            <td>{formatBtc(row.btc)}</td>
-                            <td>{formatMoney(row.revenue)}</td>
-                          </>
-                        )}
+                        <td className="text-[#7ad7cf]">{formatBtc(row.btcStoring)}</td>
+                        <td className="text-[#9ec5e8]">{formatBtc(row.btcCashout)}</td>
+                        <td>{formatBtc(row.btc)}</td>
+                        <td className="text-[#7ad7cf]">{formatMoney(row.revenueStoring)}</td>
+                        <td className="text-[#9ec5e8]">{formatMoney(row.revenueCashout)}</td>
+                        <td>{formatMoney(row.revenue)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              <div className={`grid gap-3 ${showSplit ? 'sm:grid-cols-2 xl:grid-cols-3' : 'sm:grid-cols-2'}`}>
-                {showSplit ? (
-                  <>
-                    <MetricBlock
-                      label="Storing BTC"
-                      value={formatBtc(periodSplit.hasSplit ? periodSplit.btcStoring : dailyTotals.btcStoring)}
-                      hint="From storing machines"
-                    />
-                    <MetricBlock
-                      label="Cashout BTC"
-                      value={formatBtc(periodSplit.hasSplit ? periodSplit.btcCashout : dailyTotals.btcCashout)}
-                      hint="From cashout machines"
-                    />
-                    <MetricBlock
-                      label="Month BTC Total"
-                      value={formatBtc(periodSplit.btc || dailyTotals.btc)}
-                      hint="Used for cashout / store"
-                    />
-                    <MetricBlock
-                      label="Storing Revenue"
-                      value={formatMoney(periodSplit.hasSplit ? periodSplit.revenueStoring : dailyTotals.revenueStoring)}
-                    />
-                    <MetricBlock
-                      label="Cashout Revenue"
-                      value={formatMoney(periodSplit.hasSplit ? periodSplit.revenueCashout : dailyTotals.revenueCashout)}
-                    />
-                    <MetricBlock
-                      label="Month Revenue Total"
-                      value={formatMoney(periodSplit.revenue || dailyTotals.revenue)}
-                      hint="Used for cashout / store"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <MetricBlock label="Month BTC Total" value={formatBtc(periodSplit.btc || dailyTotals.btc)} />
-                    <MetricBlock label="Month Revenue Total" value={formatMoney(periodSplit.revenue || dailyTotals.revenue)} />
-                  </>
-                )}
-              </div>
+              <p className="text-xs text-slate-500">
+                Cashout and store requests use the combined month total ({formatBtc(displaySplit.btcTotal)} / {formatMoney(displaySplit.revenueTotal)}).
+              </p>
             </>
           ) : (
             <div className="rounded-[1.2rem] border border-dashed border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
