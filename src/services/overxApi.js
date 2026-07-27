@@ -329,6 +329,22 @@ export const overxApi = createApi({
       }),
       providesTags: (_result, _error, contractId) => [{ type: 'TradingContracts', id: String(contractId) }],
     }),
+    getTradingContractAmountAdjustments: builder.query({
+      query: ({ contractId, type, page } = {}) => ({
+        url: `/client/trading-contracts/${contractId}/amount-adjustments`,
+        params: {
+          ...(type ? { type } : {}),
+          ...(page ? { page } : {}),
+        },
+      }),
+      transformResponse: (response) => ({
+        adjustments: response?.data || [],
+        adjustmentsMeta: response?.meta || null,
+      }),
+      providesTags: (_result, _error, arg) => [
+        { type: 'TradingContracts', id: `adjustments-${arg?.contractId}` },
+      ],
+    }),
     getTradingEarnings: builder.query({
       query: (params = {}) => ({
         url: '/client/trading-earnings',
@@ -462,6 +478,7 @@ export const {
   useUpdatePortalProfileMutation,
   useGetTradingContractsQuery,
   useGetTradingContractByIdQuery,
+  useGetTradingContractAmountAdjustmentsQuery,
   useGetTradingEarningsQuery,
   useGetTradingPeriodsQuery,
   useGetTradingPeriodByIdQuery,

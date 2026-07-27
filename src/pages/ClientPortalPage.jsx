@@ -47,6 +47,7 @@ import {
   useUpdatePortalProfileMutation,
 } from '../services/overxApi'
 import { clearStoredToken } from '../services/sessionStorage'
+import TradingContractAmountHistory from '../components/TradingContractAmountHistory'
 import ContractPeriodExplorer from '../components/ContractPeriodExplorer'
 import EarningsSplitSummary from '../components/EarningsSplitSummary'
 import PortalPeriodSelect from '../components/PortalPeriodSelect'
@@ -304,12 +305,20 @@ function getOverviewCards(module, section, payload, user) {
       const active = contracts.filter((contract) => contract.status === 'active')
       const totalAmount = contracts.reduce((sum, contract) => sum + Number(contract?.amount || 0), 0)
       const totalEarning = contracts.reduce((sum, contract) => sum + Number(contract?.earning || 0), 0)
+      const totalAdjustments = contracts.reduce(
+        (sum, contract) => sum + Number(contract?.amount_adjustments_count || 0),
+        0
+      )
 
       return [
         { label: 'Contracts', value: String(payload.contractsMeta?.total || contracts.length || 0), hint: 'Trading agreements', accent: true },
         { label: 'Active', value: String(active.length), hint: 'Currently running' },
-        { label: 'Total Invested', value: formatMoney(totalAmount), hint: 'Contract amounts' },
-        { label: 'Total Earning', value: formatMoney(totalEarning), hint: 'Reported contract earnings' },
+        { label: 'Current Capital', value: formatMoney(totalAmount), hint: 'Live contract amounts' },
+        {
+          label: totalAdjustments > 0 ? 'Amount Changes' : 'Total Earning',
+          value: totalAdjustments > 0 ? String(totalAdjustments) : formatMoney(totalEarning),
+          hint: totalAdjustments > 0 ? 'Increases & decreases' : 'Reported contract earnings',
+        },
       ]
     }
 
@@ -2087,46 +2096,159 @@ function TradingHistoryView({ payload }) {
 }
 
 function TradingContractsView({ payload }) {
-  const contracts = payload.contracts || []
+  const contracts = Array.isArray(payload.contracts) ? payload.contracts : []
+  const [selectedContractId, setSelectedContractId] = useState(null)
+
+  useEffect(() => {
+    if (!contracts.length) {
+      setSelectedContractId(null)
+      return
+    }
+
+    const stillExists = contracts.some((contract) => Number(contract.id) === Number(selectedContractId))
+    if (!stillExists) {
+      setSelectedContractId(Number(contracts[0].id))
+    }
+  }, [contracts, selectedContractId])
+
+  const selectedContract = useMemo(
+    () => contracts.find((contract) => Number(contract.id) === Number(selectedContractId)) || null,
+    [contracts, selectedContractId]
+  )
+
+  const totalCapital = contracts.reduce((sum, contract) => sum + Number(contract?.amount || 0), 0)
+  const totalAdjustments = contracts.reduce(
+    (sum, contract) => sum + Number(contract?.amount_adjustments_count || 0),
+    0
+  )
 
   return (
     <div className="space-y-6">
-      <div className="portal-panel rounded-[1.9rem] p-6 sm:p-4">
-        <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Trading Agreements</p>
-        <div className="mt-6 space-y-4">
-          {contracts.length ? (
-            contracts.map((contract) => (
-              <div key={contract.id} className="portal-table-row">
-                <div>
-                  <p className="font-semibold text-white">{contract.period_label || `Contract #${contract.id}`}</p>
-                  <p className="mt-1 text-sm text-slate-400">
-                    {formatDate(contract.start_date)} to {formatDate(contract.end_date)} · ROI {contract.roi_percent ?? 0}%
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-400">Amount</p>
-                  <p className="mt-1 font-semibold text-white">{formatMoney(contract.amount)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-400">Earning</p>
-                  <p className="mt-1 font-semibold text-white">{formatMoney(contract.earning)}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span className="portal-badge">{contract.status || 'unknown'}</span>
-                  {contract.file_url ? (
-                    <a href={contract.file_url} target="_blank" rel="noreferrer" className="portal-inline-link">
-                      Open file
-                      <FaArrowRight />
-                    </a>
-                  ) : null}
-                </div>
-              </div>
-            ))
-          ) : (
-            <EmptyState title="No trading contracts returned yet." detail="Active and expired trading agreements will appear here." />
-          )}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="portal-metric-block">
+          <span>Contracts</span>
+          <strong>{contracts.length}</strong>
+        </div>
+        <div className="portal-metric-block">
+          <span>Current capital</span>
+          <strong>{formatMoney(totalCapital)}</strong>
+        </div>
+        <div className="portal-metric-block">
+          <span>Amount adjustments</span>
+          <strong>{totalAdjustments}</strong>
         </div>
       </div>
+
+      <div className="portal-panel rounded-[1.45rem] p-4 sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="portal-subtitle">Trading Agreements</p>
+            <h3 className="mt-1 text-xl font-semibold text-white">Contracts & capital</h3>
+            <p className="mt-2 max-w-2xl text-sm text-slate-400">
+              Current contract amount is always live capital. Open history to review every increase and decrease.
+            </p>
+          </div>
+        </div>
+
+        {contracts.length ? (
+          <div className="mt-5 space-y-3">
+            {contracts.map((contract) => {
+              const isSelected = Number(contract.id) === Number(selectedContractId)
+              const adjustmentsCount = Number(contract.amount_adjustments_count || 0)
+
+              return (
+                <button
+                  key={contract.id}
+                  type="button"
+                  onClick={() => setSelectedContractId(Number(contract.id))}
+                  className={`w-full rounded-[1.25rem] border p-4 text-left transition sm:p-5 ${
+                    isSelected
+                      ? 'border-[#70A9DC]/45 bg-[#70A9DC]/10'
+                      : 'border-white/10 bg-white/[0.03] hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-white">{contract.period_label || `Contract #${contract.id}`}</p>
+                        <span className="portal-badge">{contract.status || 'unknown'}</span>
+                        {adjustmentsCount > 0 ? (
+                          <span className="rounded-full border border-[#70A9DC]/35 bg-[#70A9DC]/12 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-[#9ec5e8]">
+                            History ({adjustmentsCount})
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-2 text-sm text-slate-400">
+                        {formatDate(contract.start_date)} to {formatDate(contract.end_date)} · ROI {contract.roi_percent ?? 0}%
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 sm:min-w-[260px]">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Current amount</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{formatMoney(contract.amount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Earning</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{formatMoney(contract.earning)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <span className={`text-sm ${isSelected ? 'text-[#9ec5e8]' : 'text-slate-400'}`}>
+                      {isSelected ? 'Showing amount history below' : 'View amount history'}
+                    </span>
+                    {contract.file_url ? (
+                      <a
+                        href={contract.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(event) => event.stopPropagation()}
+                        className="portal-inline-link"
+                      >
+                        Open agreement
+                        <FaArrowRight />
+                      </a>
+                    ) : null}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="mt-5">
+            <EmptyState title="No trading contracts returned yet." detail="Active and expired trading agreements will appear here." />
+          </div>
+        )}
+      </div>
+
+      {selectedContract ? (
+        <div className="portal-panel rounded-[1.45rem] p-4 sm:p-6">
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-white/8 pb-5">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[#70A9DC]">Selected contract</p>
+              <h3 className="mt-1 text-xl font-semibold text-white">
+                {selectedContract.period_label || `Contract #${selectedContract.id}`}
+              </h3>
+              <p className="mt-2 text-sm text-slate-400">
+                Live capital {formatMoney(selectedContract.amount)} · ROI {selectedContract.roi_percent ?? 0}%
+              </p>
+            </div>
+            <div className="rounded-[1rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-right">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Source of truth</p>
+              <p className="mt-1 text-lg font-semibold text-white">{formatMoney(selectedContract.amount)}</p>
+              <p className="text-xs text-slate-500">Current contract amount</p>
+            </div>
+          </div>
+
+          <TradingContractAmountHistory
+            contractId={selectedContract.id}
+            fallbackAdjustments={selectedContract.amount_adjustments || []}
+            fallbackCount={selectedContract.amount_adjustments_count || 0}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }
