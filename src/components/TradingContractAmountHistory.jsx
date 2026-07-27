@@ -1,25 +1,7 @@
 import { useMemo, useState } from 'react'
-import { FaArrowTrendDown, FaArrowTrendUp, FaFileLines } from 'react-icons/fa6'
+import { FaArrowTrendDown, FaArrowTrendUp, FaFileLines, FaFileSignature } from 'react-icons/fa6'
 import { useGetTradingContractByIdQuery } from '../services/overxApi'
-
-function formatMoney(value) {
-  const amount = Number(value || 0)
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 2,
-  }).format(Number.isFinite(amount) ? amount : 0)
-}
-
-function formatSignedMoney(value) {
-  const amount = Number(value || 0)
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 2,
-    signDisplay: 'exceptZero',
-  }).format(Number.isFinite(amount) ? amount : 0)
-}
+import { formatAed, formatSignedAed } from '../utils/money'
 
 function formatDate(value) {
   if (!value) {
@@ -54,29 +36,35 @@ function sortAdjustmentsDescending(adjustments = []) {
   return sortAdjustmentsAscending(adjustments).reverse()
 }
 
-function CapitalPathChart({ adjustments = [] }) {
+function CapitalPathChart({ adjustments = [], createdAmount = null }) {
   const points = useMemo(() => {
     const ascending = sortAdjustmentsAscending(adjustments)
-    if (!ascending.length) {
-      return []
-    }
+    const series = []
 
-    const startAmount = Number(ascending[0]?.amount_before ?? 0)
-    const series = [
-      {
+    if (Number.isFinite(Number(createdAmount))) {
+      series.push({
+        id: 'created',
+        label: 'Created',
+        value: Number(createdAmount),
+      })
+    } else if (ascending.length) {
+      series.push({
         id: 'start',
         label: 'Start',
-        value: startAmount,
-      },
-      ...ascending.map((item, index) => ({
+        value: Number(ascending[0]?.amount_before ?? 0),
+      })
+    }
+
+    ascending.forEach((item, index) => {
+      series.push({
         id: item.id || `point-${index}`,
         label: formatDate(item.adjusted_on),
         value: Number(item.amount_after || 0),
-      })),
-    ]
+      })
+    })
 
     return series
-  }, [adjustments])
+  }, [adjustments, createdAmount])
 
   if (points.length < 2) {
     return null
@@ -106,11 +94,11 @@ function CapitalPathChart({ adjustments = [] }) {
     <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.03] p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Capital path</p>
-          <p className="mt-1 text-sm text-slate-300">How contract capital moved after each adjustment.</p>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Capital path (AED)</p>
+          <p className="mt-1 text-sm text-slate-300">Created → each increase/decrease → current amount.</p>
         </div>
         <p className="text-sm font-semibold text-white">
-          {formatMoney(coords[0].value)} → {formatMoney(coords[coords.length - 1].value)}
+          {formatAed(coords[0].value)} → {formatAed(coords[coords.length - 1].value)}
         </p>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="h-[160px] w-full">
@@ -125,10 +113,47 @@ function CapitalPathChart({ adjustments = [] }) {
   )
 }
 
+function CreatedRow({ amount, agreementUrl, startDate }) {
+  return (
+    <article className="rounded-[1.2rem] border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#70A9DC]/45 bg-[#70A9DC]/15 text-[#9ec5e8]">
+            <FaFileSignature />
+          </span>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-[#70A9DC]/45 bg-[#70A9DC]/14 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-[#9ec5e8]">
+                Created
+              </span>
+              {startDate ? <span className="text-xs text-slate-500">{formatDate(startDate)}</span> : null}
+            </div>
+            <p className="mt-2 text-xl font-semibold text-white">{formatAed(amount)}</p>
+            <p className="mt-1 text-sm text-slate-400">Original trading agreement amount (AED).</p>
+          </div>
+        </div>
+
+        {agreementUrl ? (
+          <a
+            href={agreementUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="portal-secondary-button inline-flex items-center gap-2"
+          >
+            <FaFileLines />
+            Open agreement
+          </a>
+        ) : null}
+      </div>
+    </article>
+  )
+}
+
 function AdjustmentRow({ adjustment }) {
   const isIncrease = String(adjustment?.type || '').toLowerCase() === 'increase'
   const accent = isIncrease ? '#2ABBAF' : '#F87171'
   const Icon = isIncrease ? FaArrowTrendUp : FaArrowTrendDown
+  const signed = adjustment?.signed_amount ?? (isIncrease ? adjustment?.amount : -Number(adjustment?.amount || 0))
 
   return (
     <article className="rounded-[1.2rem] border border-white/10 bg-white/[0.03] p-4 sm:p-5">
@@ -159,10 +184,10 @@ function AdjustmentRow({ adjustment }) {
               <span className="text-xs text-slate-500">{formatDate(adjustment?.adjusted_on)}</span>
             </div>
             <p className="mt-2 text-xl font-semibold text-white" style={{ color: accent }}>
-              {formatSignedMoney(adjustment?.signed_amount ?? (isIncrease ? adjustment?.amount : -Number(adjustment?.amount || 0)))}
+              {formatSignedAed(signed)}
             </p>
             <p className="mt-1 text-sm text-slate-400">
-              {formatMoney(adjustment?.amount_before)} → {formatMoney(adjustment?.amount_after)}
+              {formatAed(adjustment?.amount_before)} → {formatAed(adjustment?.amount_after)}
             </p>
             {adjustment?.notes ? <p className="mt-3 text-sm leading-6 text-slate-300">{adjustment.notes}</p> : null}
           </div>
@@ -176,7 +201,7 @@ function AdjustmentRow({ adjustment }) {
             className="portal-secondary-button inline-flex items-center gap-2"
           >
             <FaFileLines />
-            View document
+            {isIncrease ? 'View increase PDF' : 'View document'}
           </a>
         ) : null}
       </div>
@@ -213,6 +238,14 @@ export default function TradingContractAmountHistory({
 
   const count = Number(contract?.amount_adjustments_count ?? fallbackCount ?? allAdjustments.length ?? 0)
   const currentAmount = Number(contract?.amount)
+  const createdAmount = useMemo(() => {
+    const ascending = sortAdjustmentsAscending(allAdjustments)
+    if (ascending.length) {
+      return Number(ascending[0]?.amount_before)
+    }
+
+    return Number.isFinite(currentAmount) ? currentAmount : null
+  }, [allAdjustments, currentAmount])
 
   if (!hasId) {
     return null
@@ -223,15 +256,15 @@ export default function TradingContractAmountHistory({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Amount history</p>
-          <h4 className="mt-1 text-lg font-semibold text-white">Capital adjustments</h4>
+          <h4 className="mt-1 text-lg font-semibold text-white">AED capital adjustments</h4>
           <p className="mt-1 max-w-2xl text-sm text-slate-400">
-            Read-only record of admin increases and decreases to this contract&apos;s capital.
+            Trading agreements are in AED. History shows created capital, then each increase (with PDF when attached) and decrease, ending at the live current amount.
           </p>
         </div>
         <div className="rounded-[1rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-right">
           <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Current amount</p>
           <p className="mt-1 text-lg font-semibold text-white">
-            {Number.isFinite(currentAmount) ? formatMoney(currentAmount) : '—'}
+            {Number.isFinite(currentAmount) ? formatAed(currentAmount) : '—'}
           </p>
           <p className="text-xs text-slate-500">{count} adjustment{count === 1 ? '' : 's'}</p>
         </div>
@@ -272,10 +305,19 @@ export default function TradingContractAmountHistory({
       ) : null}
 
       {!detailQuery.isLoading && !detailQuery.isFetching && !detailQuery.error ? (
-        allAdjustments.length ? (
-          <>
-            <CapitalPathChart adjustments={allAdjustments} />
-            {adjustments.length ? (
+        <>
+          <CapitalPathChart adjustments={allAdjustments} createdAmount={createdAmount} />
+
+          {filter === 'all' && Number.isFinite(Number(createdAmount)) ? (
+            <CreatedRow
+              amount={createdAmount}
+              agreementUrl={contract?.file_url}
+              startDate={contract?.start_date}
+            />
+          ) : null}
+
+          {allAdjustments.length ? (
+            adjustments.length ? (
               <div className="space-y-3">
                 {adjustments.map((adjustment) => (
                   <AdjustmentRow key={adjustment.id} adjustment={adjustment} />
@@ -285,13 +327,14 @@ export default function TradingContractAmountHistory({
               <div className="rounded-[1.2rem] border border-dashed border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
                 No {filter} adjustments in this history.
               </div>
-            )}
-          </>
-        ) : (
-          <div className="rounded-[1.2rem] border border-dashed border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
-            No amount adjustments recorded for this contract yet. The current amount is the original contract capital.
-          </div>
-        )
+            )
+          ) : (
+            <div className="rounded-[1.2rem] border border-dashed border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
+              No amount adjustments recorded yet. Current amount matches the original agreement capital of{' '}
+              {Number.isFinite(Number(createdAmount)) ? formatAed(createdAmount) : '—'}.
+            </div>
+          )}
+        </>
       ) : null}
     </section>
   )

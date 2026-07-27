@@ -48,6 +48,7 @@ import {
 } from '../services/overxApi'
 import { clearStoredToken } from '../services/sessionStorage'
 import TradingContractAmountHistory from '../components/TradingContractAmountHistory'
+import { formatAed } from '../utils/money'
 import ContractPeriodExplorer from '../components/ContractPeriodExplorer'
 import EarningsSplitSummary from '../components/EarningsSplitSummary'
 import PortalPeriodSelect from '../components/PortalPeriodSelect'
@@ -126,7 +127,7 @@ const tradingSections = [
     slug: 'contracts',
     label: 'Trading Contracts',
     title: 'Active and expired trading agreements',
-    description: 'Browse trading contracts, ROI, and agreement files.',
+    description: 'AED agreement amounts, capital increases/decreases, and agreement PDFs.',
     icon: FaShieldHalved,
   },
   {
@@ -313,11 +314,11 @@ function getOverviewCards(module, section, payload, user) {
       return [
         { label: 'Contracts', value: String(payload.contractsMeta?.total || contracts.length || 0), hint: 'Trading agreements', accent: true },
         { label: 'Active', value: String(active.length), hint: 'Currently running' },
-        { label: 'Current Capital', value: formatMoney(totalAmount), hint: 'Live contract amounts' },
+        { label: 'Current Capital', value: formatAed(totalAmount), hint: 'AED agreement amounts' },
         {
           label: totalAdjustments > 0 ? 'Amount Changes' : 'Total Earning',
           value: totalAdjustments > 0 ? String(totalAdjustments) : formatMoney(totalEarning),
-          hint: totalAdjustments > 0 ? 'Increases & decreases' : 'Reported contract earnings',
+          hint: totalAdjustments > 0 ? 'AED increases & decreases' : 'Reported contract earnings',
         },
       ]
     }
@@ -2130,8 +2131,8 @@ function TradingContractsView({ payload }) {
           <strong>{contracts.length}</strong>
         </div>
         <div className="portal-metric-block">
-          <span>Current capital</span>
-          <strong>{formatMoney(totalCapital)}</strong>
+          <span>Current capital (AED)</span>
+          <strong>{formatAed(totalCapital)}</strong>
         </div>
         <div className="portal-metric-block">
           <span>Amount adjustments</span>
@@ -2143,9 +2144,9 @@ function TradingContractsView({ payload }) {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="portal-subtitle">Trading Agreements</p>
-            <h3 className="mt-1 text-xl font-semibold text-white">Contracts & capital</h3>
+            <h3 className="mt-1 text-xl font-semibold text-white">Contracts & AED capital</h3>
             <p className="mt-2 max-w-2xl text-sm text-slate-400">
-              Current contract amount is always live capital. Open history to review every increase and decrease.
+              Agreements are denominated in AED. Created capital updates with each increase (PDF when attached) or decrease; current amount is always live.
             </p>
           </div>
         </div>
@@ -2186,7 +2187,7 @@ function TradingContractsView({ payload }) {
                     <div className="grid grid-cols-2 gap-4 sm:min-w-[260px]">
                       <div>
                         <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Current amount</p>
-                        <p className="mt-1 text-lg font-semibold text-white">{formatMoney(contract.amount)}</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{formatAed(contract.amount)}</p>
                       </div>
                       <div>
                         <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Earning</p>
@@ -2232,13 +2233,13 @@ function TradingContractsView({ payload }) {
                 {selectedContract.period_label || `Contract #${selectedContract.id}`}
               </h3>
               <p className="mt-2 text-sm text-slate-400">
-                Live capital {formatMoney(selectedContract.amount)} · ROI {selectedContract.roi_percent ?? 0}%
+                Live capital {formatAed(selectedContract.amount)} · ROI {selectedContract.roi_percent ?? 0}%
               </p>
             </div>
             <div className="rounded-[1rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-right">
               <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Source of truth</p>
-              <p className="mt-1 text-lg font-semibold text-white">{formatMoney(selectedContract.amount)}</p>
-              <p className="text-xs text-slate-500">Current contract amount</p>
+              <p className="mt-1 text-lg font-semibold text-white">{formatAed(selectedContract.amount)}</p>
+              <p className="text-xs text-slate-500">Current AED amount</p>
             </div>
           </div>
 
