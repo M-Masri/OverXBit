@@ -23,8 +23,10 @@ import { useDispatch, useSelector } from 'react-redux'
 import brandLogo from '../assets/OVERXBIT LOGO-04.png'
 import { clearSession, selectToken, selectUser } from '../services/authSlice'
 import {
+  overxApi,
   useChangePasswordMutation,
   useCreatePortalCashoutDetailsMutation,
+  useDeletePortalCashoutDetailsMutation,
   useDownloadPeriodReportMutation,
   useGetPortalDashboardQuery,
   useGetMiningContractsQuery,
@@ -44,6 +46,7 @@ import {
   useRequestPeriodStoreMutation,
   useRequestTradingCashoutMutation,
   useRequestTradingStoreMutation,
+  useUpdatePortalCashoutDetailsMutation,
   useUpdatePortalProfileMutation,
 } from '../services/overxApi'
 import { clearStoredToken } from '../services/sessionStorage'
@@ -59,6 +62,8 @@ import {
   dailyRowsHaveSplit,
   filterPeriodsByContract,
   getDashboardEarningsSplit,
+  canRequestMiningSettlement,
+  getMiningSettlementState,
   getPeriodDisplayLabel,
   getPeriodContractGroup,
   getPeriodEarningsSplit,
@@ -464,7 +469,7 @@ function getInsightRows(module, section, payload, user) {
     if (section.slug === 'contracts') {
       return (payload.contracts || []).slice(0, 4).map((contract) => ({
         label: contract.period_label || `Contract #${contract.id}`,
-        value: contract.status || 'unknown',
+        value: formatAed(contract.amount),
         tone: contract.status === 'active' ? 'positive' : 'neutral',
       }))
     }
@@ -1695,15 +1700,19 @@ function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestSt
             </thead>
             <tbody>
               {rows.map((period) => {
-                const canAct = ['complete', 'completed'].includes(String(period?.status || '').toLowerCase())
+                const canAct = canRequestMiningSettlement(period)
+                const canCashout = canAct && period?.is_eligible_for_request !== false
                 const split = getPeriodEarningsSplit(period)
+                const settlementState = getMiningSettlementState(period)
 
                 return (
                   <tr key={period.id}>
                     <td>{getPeriodContractGroup(period, contracts) || '—'}</td>
                     <td>
                       <p className="font-medium text-white">{getPeriodDisplayLabel(period)}</p>
-                      <p className="mt-1 text-xs text-slate-500">{period.client_decision || 'pending'}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {settlementState || period.client_decision || 'No decision yet'}
+                      </p>
                     </td>
                     <td><span className="portal-badge">{formatStatusLabel(period.status)}</span></td>
                     <td>
@@ -1724,12 +1733,13 @@ function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestSt
                           <button
                             type="button"
                             onClick={() => onRequestCashout(period.id)}
-                            disabled={actionState.loading}
+                            disabled={actionState.loading || !canCashout}
                             className="portal-secondary-button"
+                            title={!canCashout ? 'This period is not eligible for cashout.' : undefined}
                           >
                             {actionState.loading && actionState.type === 'cashout' && actionState.periodId === period.id
                               ? 'Sending...'
-                              : 'Cashout'}
+                              : 'Cash out'}
                           </button>
                           <button
                             type="button"
@@ -1739,11 +1749,11 @@ function MiningPeriodsLedger({ periods, contracts, onRequestCashout, onRequestSt
                           >
                             {actionState.loading && actionState.type === 'store' && actionState.periodId === period.id
                               ? 'Sending...'
-                              : 'Store'}
+                              : 'Store earnings'}
                           </button>
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-500">—</span>
+                        <span className="text-xs text-slate-500">{settlementState || 'Unavailable'}</span>
                       )}
                     </td>
                   </tr>
@@ -1792,11 +1802,11 @@ function HistoryView({ payload }) {
                   <tbody>
                     {transactions.map((transaction) => (
                       <tr key={transaction.id}>
-                        <td>{transaction.type || 'transaction'}</td>
+                        <td>{formatStatusLabel(transaction.type || 'transaction')}</td>
                         <td>{formatDateTime(transaction.requested_at)}</td>
                         <td>{formatBtc(transaction.btc_amount)}</td>
                         <td>
-                          <span className="portal-badge">{transaction.status || 'unknown'}</span>
+                          <span className="portal-badge">{formatStatusLabel(transaction.status)}</span>
                         </td>
                       </tr>
                     ))}
@@ -1814,9 +1824,27 @@ function HistoryView({ payload }) {
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Cashouts</p>
             <div className="mt-5 space-y-4">
               {cashouts.length ? (
-                cashouts.map((cashout) => (
-                  <div key={cashout.id} className="portal-list-row"><span>{formatDate(cashout.date)}</span><strong>{formatMoney(cashout.amount)}</strong></div>
-                ))
+                cashouts.map((cashout) => {
+                  const payoutMethod = cashout.cashout_detail || cashout.cashout_details || null
+                  return (
+                    <div key={cashout.id} className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+                      <div className="portal-list-row">
+                        <span>{formatDateTime(cashout.requested_at || cashout.date || cashout.created_at)}</span>
+                        <strong>{formatStatusLabel(cashout.status)}</strong>
+                      </div>
+                      <div className="portal-list-row mt-2">
+                        <span>Amount</span>
+                        <strong>{formatMoney(cashout.amount ?? cashout.revenue_amount ?? cashout.total_revenue)}</strong>
+                      </div>
+                      <div className="portal-list-row mt-2">
+                        <span>Payout account</span>
+                        <strong className="max-w-[14rem] truncate text-right" title={payoutMethod ? getPayoutMethodLabel(payoutMethod) : ''}>
+                          {payoutMethod ? getPayoutMethodLabel(payoutMethod) : 'Not recorded'}
+                        </strong>
+                      </div>
+                    </div>
+                  )
+                })
               ) : (
                 <EmptyState title="No cashout records yet." detail="Completed payouts and receipts will be listed here." compact />
               )}
@@ -1828,7 +1856,16 @@ function HistoryView({ payload }) {
             <div className="mt-5 space-y-4">
               {storedEarnings.length ? (
                 storedEarnings.map((entry) => (
-                  <div key={entry.id} className="portal-list-row"><span>{formatDateTime(entry.stored_at)}</span><strong>{formatBtc(entry.btc_amount)}</strong></div>
+                  <div key={entry.id} className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+                    <div className="portal-list-row">
+                      <span>{formatDateTime(entry.stored_at || entry.created_at)}</span>
+                      <strong>{formatStatusLabel(entry.status || 'completed')}</strong>
+                    </div>
+                    <div className="portal-list-row mt-2">
+                      <span>Stored BTC</span>
+                      <strong>{formatBtc(entry.btc_amount ?? entry.total_btc_earned)}</strong>
+                    </div>
+                  </div>
                 ))
               ) : (
                 <EmptyState title="No stored earnings yet." detail="Stored balances will appear here once a period is kept in BTC." compact />
@@ -1841,11 +1878,16 @@ function HistoryView({ payload }) {
   )
 }
 
-function MethodsView({ payload }) {
-  const methods = payload.methods || []
+function MethodsView({ payload, onAddMethod, onEditMethod, onDeleteMethod, deletingMethodId, actionError }) {
+  const methods = [...(payload.methods || [])].sort((a, b) => Number(Boolean(b.is_default)) - Number(Boolean(a.is_default)))
 
   return (
     <div className="space-y-6">
+      {actionError ? (
+        <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+          {actionError}
+        </p>
+      ) : null}
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard label="Saved Methods" value={String(methods.length)} tone="accent" />
         <StatCard label="Default Method" value={methods.find((method) => method.is_default)?.label || 'Not set'} />
@@ -1853,7 +1895,12 @@ function MethodsView({ payload }) {
       </div>
 
       <div className="portal-panel rounded-[1.9rem] p-6 sm:p-4">
-        <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Cashout Details</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Cashout Details</p>
+          <button type="button" className="portal-secondary-button" onClick={onAddMethod}>
+            Add payout method
+          </button>
+        </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           {methods.length ? (
             methods.map((method) => (
@@ -1887,6 +1934,19 @@ function MethodsView({ payload }) {
                       <div className="portal-list-row"><span>Currency</span><strong>{method.currency?.code || 'Not set'}</strong></div>
                     </>
                   )}
+                </div>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <button type="button" className="portal-secondary-button" onClick={() => onEditMethod(method)}>
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="portal-secondary-button border-red-400/30 text-red-200"
+                    onClick={() => onDeleteMethod(method)}
+                    disabled={deletingMethodId === method.id}
+                  >
+                    {deletingMethodId === method.id ? 'Deleting...' : 'Delete'}
+                  </button>
                 </div>
               </div>
             ))
@@ -2186,7 +2246,7 @@ function TradingContractsView({ payload }) {
 
                     <div className="grid grid-cols-2 gap-4 sm:min-w-[260px]">
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Current amount</p>
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Current amount (AED)</p>
                         <p className="mt-1 text-lg font-semibold text-white">{formatAed(contract.amount)}</p>
                       </div>
                       <div>
@@ -2262,6 +2322,11 @@ function ContentRenderer({
   onRequestStore,
   actionState,
   onOpenEditProfile,
+  onAddMethod,
+  onEditMethod,
+  onDeleteMethod,
+  deletingMethodId,
+  methodActionError,
 }) {
   if (module === 'trading') {
     if (section.slug === 'periods') {
@@ -2284,7 +2349,16 @@ function ContentRenderer({
     }
 
     if (section.slug === 'methods') {
-      return <MethodsView payload={payload} />
+      return (
+        <MethodsView
+          payload={payload}
+          onAddMethod={onAddMethod}
+          onEditMethod={onEditMethod}
+          onDeleteMethod={onDeleteMethod}
+          deletingMethodId={deletingMethodId}
+          actionError={methodActionError}
+        />
+      )
     }
 
     if (section.slug === 'profile') {
@@ -2307,7 +2381,16 @@ function ContentRenderer({
   }
 
   if (section.slug === 'methods') {
-    return <MethodsView payload={payload} />
+    return (
+      <MethodsView
+        payload={payload}
+        onAddMethod={onAddMethod}
+        onEditMethod={onEditMethod}
+        onDeleteMethod={onDeleteMethod}
+        deletingMethodId={deletingMethodId}
+        actionError={methodActionError}
+      />
+    )
   }
 
   return <ProfileView payload={payload} onOpenEditProfile={onOpenEditProfile} profileMode="mining" />
@@ -2315,6 +2398,29 @@ function ContentRenderer({
 
 function getQueryErrorMessage(error) {
   return error?.data?.message || error?.message || 'Unable to load this section right now.'
+}
+
+function getValidationErrors(error) {
+  const errors = error?.data?.errors
+  if (!errors || typeof errors !== 'object') {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(errors).map(([field, messages]) => [
+      field,
+      Array.isArray(messages) ? messages[0] : String(messages),
+    ])
+  )
+}
+
+function getPayoutMethodLabel(method) {
+  const detail =
+    method?.type === 'bank'
+      ? method?.bank_name || method?.iban
+      : method?.crypto_network || method?.crypto_wallet_address
+
+  return `${method?.label || `Method #${method?.id}`}${detail ? ` — ${detail}` : ''}${method?.is_default ? ' (default)' : ''}`
 }
 
 const initialPasswordForm = {
@@ -2358,6 +2464,8 @@ function ClientPortalPage() {
   const [logoutRequest] = useLogoutMutation()
   const [changePasswordRequest] = useChangePasswordMutation()
   const [createPortalCashoutDetails] = useCreatePortalCashoutDetailsMutation()
+  const [updatePortalCashoutDetails] = useUpdatePortalCashoutDetailsMutation()
+  const [deletePortalCashoutDetails] = useDeletePortalCashoutDetailsMutation()
   const [requestPeriodCashout] = useRequestPeriodCashoutMutation()
   const [requestPeriodStore] = useRequestPeriodStoreMutation()
   const [requestTradingCashout] = useRequestTradingCashoutMutation()
@@ -2367,6 +2475,11 @@ function ClientPortalPage() {
   const [periodStatusOverrides, setPeriodStatusOverrides] = useState({})
   const [tradingPeriodStatusOverrides, setTradingPeriodStatusOverrides] = useState({})
   const [periodActionError, setPeriodActionError] = useState('')
+  const [settlementFieldErrors, setSettlementFieldErrors] = useState({})
+  const [isMiningSettlementModalOpen, setIsMiningSettlementModalOpen] = useState(false)
+  const [miningSettlementType, setMiningSettlementType] = useState('')
+  const [miningSettlementPeriodId, setMiningSettlementPeriodId] = useState(null)
+  const [storeNotes, setStoreNotes] = useState('')
   const [isTradingCashoutModalOpen, setIsTradingCashoutModalOpen] = useState(false)
   const [tradingCashoutPeriodId, setTradingCashoutPeriodId] = useState(null)
   const [selectedCashoutDetailsId, setSelectedCashoutDetailsId] = useState('')
@@ -2379,8 +2492,11 @@ function ClientPortalPage() {
   const [cashoutDetailsType, setCashoutDetailsType] = useState('bank')
   const [cashoutDetailsSubmitting, setCashoutDetailsSubmitting] = useState(false)
   const [cashoutDetailsError, setCashoutDetailsError] = useState('')
+  const [cashoutDetailsFieldErrors, setCashoutDetailsFieldErrors] = useState({})
   const [cashoutDetailsSuccess, setCashoutDetailsSuccess] = useState('')
   const [cashoutDetailsForm, setCashoutDetailsForm] = useState(initialCashoutDetailsForm)
+  const [editingCashoutDetailsId, setEditingCashoutDetailsId] = useState(null)
+  const [deletingCashoutDetailsId, setDeletingCashoutDetailsId] = useState(null)
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false)
   const [editProfileSubmitting, setEditProfileSubmitting] = useState(false)
   const [editProfileError, setEditProfileError] = useState('')
@@ -2484,6 +2600,23 @@ function ClientPortalPage() {
     () => sortPeriodsForClient(filterPeriodsByContract(periodOptions, miningContracts, selectedContractId), miningContracts),
     [miningContracts, periodOptions, selectedContractId]
   )
+  const displayedContractPeriods = useMemo(
+    () =>
+      contractPeriods.map((period) => {
+        const override = periodStatusOverrides[period.id]
+        if (!override) {
+          return period
+        }
+
+        return {
+          ...period,
+          status: typeof override === 'string' ? override : override.status,
+          client_decision:
+            typeof override === 'string' ? period.client_decision : override.client_decision,
+        }
+      }),
+    [contractPeriods, periodStatusOverrides]
+  )
 
   useEffect(() => {
     if (activeSection.slug !== 'periods' || !miningContracts.length) {
@@ -2522,6 +2655,11 @@ function ClientPortalPage() {
     return source.find((period) => Number(period.id) === Number(selectedPeriodId)) || null
   }, [activeSection.slug, contractPeriods, periodOptions, selectedPeriodId])
 
+  const miningSettlementPeriod = useMemo(
+    () => periodOptions.find((period) => Number(period.id) === Number(miningSettlementPeriodId)) || null,
+    [miningSettlementPeriodId, periodOptions]
+  )
+
   function handleContractChange(contractId) {
     setSelectedContractId(contractId)
     const filtered = sortPeriodsForClient(
@@ -2541,8 +2679,15 @@ function ClientPortalPage() {
     skip:
       activeSection.slug !== 'methods' &&
       !(isTradingModule && ['periods', 'dashboard'].includes(activeSection.slug)) &&
-      !isTradingCashoutModalOpen,
+      !isTradingCashoutModalOpen &&
+      !isMiningSettlementModalOpen &&
+      !isCashoutDetailsModalOpen,
   })
+
+  const defaultCashoutDetailsId =
+    (methodsQuery.data?.methods || []).find((method) => method.is_default)?.id || ''
+  const activeCashoutDetailsId = selectedCashoutDetailsId || String(defaultCashoutDetailsId || '')
+
   const profileQuery = useGetPortalProfileQuery(undefined, { skip: activeSection.slug !== 'profile' })
 
   const tradingPeriodOptions = useMemo(() => {
@@ -2662,14 +2807,16 @@ function ClientPortalPage() {
     return {
       ...payload,
       periods: payload.periods.map((period) => {
-        const overrideStatus = overrides[period.id]
-        if (!overrideStatus) {
+        const override = overrides[period.id]
+        if (!override) {
           return period
         }
 
         return {
           ...period,
-          status: overrideStatus,
+          status: typeof override === 'string' ? override : override.status,
+          client_decision:
+            typeof override === 'string' ? period.client_decision : override.client_decision,
         }
       }),
     }
@@ -2747,19 +2894,105 @@ function ClientPortalPage() {
       return
     }
 
-    submitMiningCashout(periodId)
+    setPeriodActionError('')
+    setSettlementFieldErrors({})
+    setMiningSettlementType('cashout')
+    setMiningSettlementPeriodId(periodId)
+    const defaultMethod = (methodsQuery.data?.methods || []).find((method) => method.is_default)
+    setSelectedCashoutDetailsId(defaultMethod?.id ? String(defaultMethod.id) : '')
+    setIsMiningSettlementModalOpen(true)
   }
 
-  async function submitMiningCashout(periodId) {
+  function closeMiningSettlementModal(force = false) {
+    if (periodActionState.loading && !force) {
+      return
+    }
+
+    setIsMiningSettlementModalOpen(false)
+    setMiningSettlementType('')
+    setMiningSettlementPeriodId(null)
+    setSelectedCashoutDetailsId('')
+    setStoreNotes('')
+    setSettlementFieldErrors({})
     setPeriodActionError('')
-    setPeriodActionState({ loading: true, type: 'cashout', periodId })
+  }
+
+  function refreshMiningSettlementData() {
+    dispatch(
+      overxApi.util.invalidateTags([
+        'Periods',
+        'History',
+        'Dashboard',
+        'Chart',
+        'Methods',
+      ])
+    )
+  }
+
+  function shouldRefreshIneligiblePeriod(error) {
+    const status = Number(error?.status)
+    const message = String(error?.data?.message || '').toLowerCase()
+    const validationErrors = getValidationErrors(error)
+    return (
+      status === 404 ||
+      Boolean(validationErrors.earning_period_id) ||
+      (status === 422 &&
+        ['locked', 'completed', 'eligible', 'already exists', 'settlement request'].some((phrase) =>
+          message.includes(phrase)
+        ))
+    )
+  }
+
+  async function submitMiningSettlement(event) {
+    event.preventDefault()
+
+    if (!miningSettlementPeriodId || periodActionState.loading) {
+      return
+    }
+
+    const periodId = miningSettlementPeriodId
+    const actionType = miningSettlementType
+    setPeriodActionError('')
+    setSettlementFieldErrors({})
+
+    if (actionType === 'cashout' && !activeCashoutDetailsId) {
+      setSettlementFieldErrors({ cashout_details_id: 'Select a payout account.' })
+      return
+    }
+
+    setPeriodActionState({ loading: true, type: actionType, periodId })
 
     try {
-      await requestPeriodCashout({ earning_period_id: periodId, token }).unwrap()
-      setPeriodStatusOverrides((prev) => ({ ...prev, [periodId]: 'cashout requested' }))
-      miningPeriodsQuery.refetch()
+      if (actionType === 'cashout') {
+        await requestPeriodCashout({
+          earning_period_id: periodId,
+          cashout_details_id: Number(activeCashoutDetailsId),
+        }).unwrap()
+      } else {
+        await requestPeriodStore({
+          earning_period_id: periodId,
+          notes: storeNotes.trim() || undefined,
+        }).unwrap()
+      }
+
+      setPeriodStatusOverrides((prev) => ({
+        ...prev,
+        [periodId]: {
+          status: 'request_pending',
+          client_decision: actionType,
+        },
+      }))
+      refreshMiningSettlementData()
+      closeMiningSettlementModal(true)
     } catch (requestError) {
       setPeriodActionError(getQueryErrorMessage(requestError))
+      setSettlementFieldErrors(getValidationErrors(requestError))
+
+      if (shouldRefreshIneligiblePeriod(requestError)) {
+        refreshMiningSettlementData()
+        setIsMiningSettlementModalOpen(false)
+        setMiningSettlementPeriodId(null)
+      }
     } finally {
       setPeriodActionState({ loading: false, type: '', periodId: null })
     }
@@ -2799,29 +3032,33 @@ function ClientPortalPage() {
       return
     }
 
-    setPeriodActionError('')
-    setPeriodActionState({ loading: true, type: 'store', periodId })
+    if (isTradingModule) {
+      setPeriodActionError('')
+      setPeriodActionState({ loading: true, type: 'store', periodId })
 
-    try {
-      if (isTradingModule) {
+      try {
         await requestTradingStore({ trading_period_id: periodId }).unwrap()
         setTradingPeriodStatusOverrides((prev) => ({ ...prev, [periodId]: 'request_pending' }))
         tradingPeriodsQuery.refetch()
-      } else {
-        if (!token) {
-          setPeriodActionState({ loading: false, type: '', periodId: null })
-          return
-        }
-
-        await requestPeriodStore({ earning_period_id: periodId, token }).unwrap()
-        setPeriodStatusOverrides((prev) => ({ ...prev, [periodId]: 'stored' }))
-        miningPeriodsQuery.refetch()
+      } catch (requestError) {
+        setPeriodActionError(getQueryErrorMessage(requestError))
+      } finally {
+        setPeriodActionState({ loading: false, type: '', periodId: null })
       }
-    } catch (requestError) {
-      setPeriodActionError(getQueryErrorMessage(requestError))
-    } finally {
-      setPeriodActionState({ loading: false, type: '', periodId: null })
+
+      return
     }
+
+    if (!token) {
+      return
+    }
+
+    setPeriodActionError('')
+    setSettlementFieldErrors({})
+    setMiningSettlementType('store')
+    setMiningSettlementPeriodId(periodId)
+    setStoreNotes('')
+    setIsMiningSettlementModalOpen(true)
   }
 
   function handleOpenChangePasswordModal() {
@@ -2868,11 +3105,59 @@ function ClientPortalPage() {
   }
 
   function handleOpenCashoutDetailsModal() {
+    setEditingCashoutDetailsId(null)
     setCashoutDetailsType('bank')
     setCashoutDetailsError('')
+    setCashoutDetailsFieldErrors({})
     setCashoutDetailsSuccess('')
     setCashoutDetailsForm(initialCashoutDetailsForm)
     setIsCashoutDetailsModalOpen(true)
+  }
+
+  function handleEditCashoutDetails(method) {
+    setEditingCashoutDetailsId(method.id)
+    setCashoutDetailsType(method.type || 'bank')
+    setCashoutDetailsError('')
+    setCashoutDetailsFieldErrors({})
+    setCashoutDetailsSuccess('')
+    setCashoutDetailsForm({
+      label: method.label || '',
+      is_default: Boolean(method.is_default),
+      account_holder: method.account_holder || '',
+      bank_name: method.bank_name || '',
+      swift_code: method.swift_code || '',
+      routing_number: method.routing_number || '',
+      iban: method.iban || '',
+      crypto_wallet_address: method.crypto_wallet_address || '',
+      crypto_network: method.crypto_network || '',
+      currency_id: method.currency_id || method.currency?.id || '',
+    })
+    setIsCashoutDetailsModalOpen(true)
+  }
+
+  async function handleDeleteCashoutDetails(method) {
+    if (!method?.id || deletingCashoutDetailsId) {
+      return
+    }
+
+    if (!window.confirm(`Delete payout method "${method.label || `#${method.id}`}"?`)) {
+      return
+    }
+
+    setDeletingCashoutDetailsId(method.id)
+    setPeriodActionError('')
+
+    try {
+      await deletePortalCashoutDetails(method.id).unwrap()
+      if (String(selectedCashoutDetailsId) === String(method.id)) {
+        setSelectedCashoutDetailsId('')
+      }
+      methodsQuery.refetch()
+    } catch (requestError) {
+      setPeriodActionError(getQueryErrorMessage(requestError))
+    } finally {
+      setDeletingCashoutDetailsId(null)
+    }
   }
 
   function handleOpenEditProfileModal(profile) {
@@ -2946,7 +3231,9 @@ function ClientPortalPage() {
     }
 
     setIsCashoutDetailsModalOpen(false)
+    setEditingCashoutDetailsId(null)
     setCashoutDetailsError('')
+    setCashoutDetailsFieldErrors({})
     setCashoutDetailsSuccess('')
     setCashoutDetailsType('bank')
     setCashoutDetailsForm(initialCashoutDetailsForm)
@@ -2968,12 +3255,8 @@ function ClientPortalPage() {
     }
 
     setCashoutDetailsError('')
+    setCashoutDetailsFieldErrors({})
     setCashoutDetailsSuccess('')
-
-    if (!cashoutDetailsForm.label.trim()) {
-      setCashoutDetailsError('Label is required.')
-      return
-    }
 
     const basePayload = {
       label: cashoutDetailsForm.label.trim(),
@@ -2984,8 +3267,8 @@ function ClientPortalPage() {
     let payload = basePayload
 
     if (cashoutDetailsType === 'bank') {
-      if (!cashoutDetailsForm.account_holder.trim() || !cashoutDetailsForm.bank_name.trim() || !cashoutDetailsForm.iban.trim()) {
-        setCashoutDetailsError('Account holder, bank name, and IBAN are required for bank details.')
+      if (!cashoutDetailsForm.account_holder.trim() || !cashoutDetailsForm.bank_name.trim()) {
+        setCashoutDetailsError('Account holder and bank name are required for bank details.')
         return
       }
 
@@ -2996,12 +3279,13 @@ function ClientPortalPage() {
         swift_code: cashoutDetailsForm.swift_code.trim(),
         routing_number: cashoutDetailsForm.routing_number.trim(),
         iban: cashoutDetailsForm.iban.trim(),
+        ...(cashoutDetailsForm.currency_id ? { currency_id: Number(cashoutDetailsForm.currency_id) } : {}),
       }
     } else {
       const parsedCurrencyId = Number(cashoutDetailsForm.currency_id)
 
-      if (!cashoutDetailsForm.crypto_wallet_address.trim() || !cashoutDetailsForm.crypto_network.trim() || !Number.isFinite(parsedCurrencyId) || parsedCurrencyId <= 0) {
-        setCashoutDetailsError('Wallet address, network, and currency ID are required for crypto details.')
+      if (!cashoutDetailsForm.crypto_wallet_address.trim()) {
+        setCashoutDetailsError('Wallet address is required for crypto details.')
         return
       }
 
@@ -3009,19 +3293,33 @@ function ClientPortalPage() {
         ...basePayload,
         crypto_wallet_address: cashoutDetailsForm.crypto_wallet_address.trim(),
         crypto_network: cashoutDetailsForm.crypto_network.trim(),
-        currency_id: parsedCurrencyId,
+        ...(Number.isFinite(parsedCurrencyId) && parsedCurrencyId > 0 ? { currency_id: parsedCurrencyId } : {}),
       }
     }
 
     setCashoutDetailsSubmitting(true)
 
     try {
-      await createPortalCashoutDetails(payload).unwrap()
-      setCashoutDetailsSuccess('Payment details saved successfully.')
-      methodsQuery.refetch()
+      const response = editingCashoutDetailsId
+        ? await updatePortalCashoutDetails({ id: editingCashoutDetailsId, ...payload }).unwrap()
+        : await createPortalCashoutDetails(payload).unwrap()
+      setCashoutDetailsSuccess(editingCashoutDetailsId ? 'Payment details updated successfully.' : 'Payment details saved successfully.')
+      const refreshed = await methodsQuery.refetch()
+      const createdMethod = response?.data || response?.cashout_detail || null
+      const latestMethods = refreshed?.data?.methods || []
+      const selectedMethod =
+        (createdMethod?.id && latestMethods.find((method) => Number(method.id) === Number(createdMethod.id))) ||
+        (!editingCashoutDetailsId ? latestMethods.find((method) => method.is_default) : null)
+
+      if (isMiningSettlementModalOpen && selectedMethod?.id) {
+        setSelectedCashoutDetailsId(String(selectedMethod.id))
+        setIsCashoutDetailsModalOpen(false)
+      }
+
       setCashoutDetailsForm(initialCashoutDetailsForm)
     } catch (requestError) {
       setCashoutDetailsError(getQueryErrorMessage(requestError))
+      setCashoutDetailsFieldErrors(getValidationErrors(requestError))
     } finally {
       setCashoutDetailsSubmitting(false)
     }
@@ -3240,7 +3538,7 @@ function ClientPortalPage() {
                     />
 
                     <MiningPeriodsLedger
-                      periods={contractPeriods}
+                      periods={displayedContractPeriods}
                       contracts={miningContracts}
                       onRequestCashout={handleRequestCashout}
                       onRequestStore={handleRequestStore}
@@ -3340,6 +3638,11 @@ function ClientPortalPage() {
                         onRequestStore={handleRequestStore}
                         actionState={periodActionState}
                         onOpenEditProfile={handleOpenEditProfileModal}
+                        onAddMethod={handleOpenCashoutDetailsModal}
+                        onEditMethod={handleEditCashoutDetails}
+                        onDeleteMethod={handleDeleteCashoutDetails}
+                        deletingMethodId={deletingCashoutDetailsId}
+                        methodActionError={periodActionError}
                       />
                     </div>
                   ) : null}
@@ -3350,6 +3653,124 @@ function ClientPortalPage() {
           </section>
         </main>
       </div>
+
+      {isMiningSettlementModalOpen && miningSettlementPeriod ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#020617]/88 p-4">
+          <div className="w-full max-w-lg rounded-[1.2rem] border border-[#3b82f6]/35 bg-[#0a1326] p-6 shadow-[0_24px_90px_-46px_rgba(59,130,246,0.68)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-[#60a5fa]">Mining settlement</p>
+                <h3 className="mt-2 text-xl font-semibold text-white">
+                  {miningSettlementType === 'cashout' ? 'Cash out earnings' : 'Store earnings'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => closeMiningSettlementModal()}
+                className="portal-secondary-button"
+                disabled={periodActionState.loading}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-sm font-semibold text-white">{getPeriodDisplayLabel(miningSettlementPeriod)}</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Combined BTC</p>
+                  <p className="mt-1 font-semibold text-[#7ad7cf]">
+                    {formatBtc(getPeriodEarningsSplit(miningSettlementPeriod).btc)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Combined revenue</p>
+                  <p className="mt-1 font-semibold text-white">
+                    {formatMoney(getPeriodEarningsSplit(miningSettlementPeriod).revenue)}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs leading-5 text-slate-400">
+                Amounts are fixed from this earning period and cannot be edited.
+                {miningSettlementType === 'cashout'
+                  ? ' Cashouts require three admin approvals.'
+                  : ' Store requests require one admin approval.'}
+              </p>
+            </div>
+
+            <form onSubmit={submitMiningSettlement} className="mt-5 space-y-4">
+              {miningSettlementType === 'cashout' ? (
+                <>
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <label htmlFor="mining_cashout_method" className="block text-xs uppercase tracking-[0.16em] text-slate-400">
+                        Payout account
+                      </label>
+                      <button type="button" className="portal-inline-link text-xs" onClick={handleOpenCashoutDetailsModal}>
+                        Add account
+                      </button>
+                    </div>
+                    <select
+                      id="mining_cashout_method"
+                      value={activeCashoutDetailsId}
+                      onChange={(event) => {
+                        setSelectedCashoutDetailsId(event.target.value)
+                        setSettlementFieldErrors((prev) => ({ ...prev, cashout_details_id: '' }))
+                      }}
+                      className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
+                    >
+                      <option value="">Select a saved account</option>
+                      {[...(methodsQuery.data?.methods || [])]
+                        .sort((a, b) => Number(Boolean(b.is_default)) - Number(Boolean(a.is_default)))
+                        .map((method) => (
+                          <option key={method.id} value={method.id}>
+                            {getPayoutMethodLabel(method)}
+                          </option>
+                        ))}
+                    </select>
+                    {settlementFieldErrors.cashout_details_id ? (
+                      <p className="mt-2 text-sm text-red-300">{settlementFieldErrors.cashout_details_id}</p>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <label htmlFor="store_notes" className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">
+                    Notes (optional)
+                  </label>
+                  <textarea
+                    id="store_notes"
+                    value={storeNotes}
+                    onChange={(event) => setStoreNotes(event.target.value.slice(0, 1000))}
+                    rows="4"
+                    maxLength="1000"
+                    className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
+                    placeholder="Keep these earnings stored."
+                  />
+                  <p className="mt-1 text-right text-xs text-slate-500">{storeNotes.length}/1000</p>
+                  {settlementFieldErrors.notes ? (
+                    <p className="mt-2 text-sm text-red-300">{settlementFieldErrors.notes}</p>
+                  ) : null}
+                </div>
+              )}
+
+              {periodActionError ? (
+                <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                  {periodActionError}
+                </p>
+              ) : null}
+
+              <button type="submit" className="portal-secondary-button w-full justify-center" disabled={periodActionState.loading}>
+                {periodActionState.loading
+                  ? 'Submitting...'
+                  : miningSettlementType === 'cashout'
+                    ? 'Submit cashout request'
+                    : 'Submit store request'}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {isTradingCashoutModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/88 p-4">
@@ -3407,7 +3828,9 @@ function ClientPortalPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.22em] text-[#60a5fa]">Payment Details</p>
-                <h3 className="mt-2 text-xl font-semibold text-white">Add cashout method</h3>
+                <h3 className="mt-2 text-xl font-semibold text-white">
+                  {editingCashoutDetailsId ? 'Edit cashout method' : 'Add cashout method'}
+                </h3>
               </div>
               <button type="button" onClick={handleCloseCashoutDetailsModal} className="portal-secondary-button" disabled={cashoutDetailsSubmitting}>
                 Close
@@ -3449,6 +3872,9 @@ function ClientPortalPage() {
                     className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                     placeholder="My main payout method"
                   />
+                  {cashoutDetailsFieldErrors.label ? (
+                    <p className="mt-2 text-sm text-red-300">{cashoutDetailsFieldErrors.label}</p>
+                  ) : null}
                 </div>
 
                 {cashoutDetailsType === 'bank' ? (
@@ -3462,6 +3888,9 @@ function ClientPortalPage() {
                         onChange={handleCashoutDetailsInputChange}
                         className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                       />
+                      {cashoutDetailsFieldErrors.account_holder ? (
+                        <p className="mt-2 text-sm text-red-300">{cashoutDetailsFieldErrors.account_holder}</p>
+                      ) : null}
                     </div>
                     <div>
                       <label htmlFor="bank_name" className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">Bank Name</label>
@@ -3472,6 +3901,9 @@ function ClientPortalPage() {
                         onChange={handleCashoutDetailsInputChange}
                         className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                       />
+                      {cashoutDetailsFieldErrors.bank_name ? (
+                        <p className="mt-2 text-sm text-red-300">{cashoutDetailsFieldErrors.bank_name}</p>
+                      ) : null}
                     </div>
                     <div>
                       <label htmlFor="swift_code" className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">Swift Code</label>
@@ -3502,6 +3934,9 @@ function ClientPortalPage() {
                         onChange={handleCashoutDetailsInputChange}
                         className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                       />
+                      {cashoutDetailsFieldErrors.iban ? (
+                        <p className="mt-2 text-sm text-red-300">{cashoutDetailsFieldErrors.iban}</p>
+                      ) : null}
                     </div>
                   </>
                 ) : (
@@ -3515,6 +3950,9 @@ function ClientPortalPage() {
                         onChange={handleCashoutDetailsInputChange}
                         className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
                       />
+                      {cashoutDetailsFieldErrors.crypto_wallet_address ? (
+                        <p className="mt-2 text-sm text-red-300">{cashoutDetailsFieldErrors.crypto_wallet_address}</p>
+                      ) : null}
                     </div>
                     <div>
                       <label htmlFor="crypto_network" className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">Network</label>
@@ -3563,7 +4001,11 @@ function ClientPortalPage() {
               ) : null}
 
               <button type="submit" className="portal-secondary-button w-full justify-center" disabled={cashoutDetailsSubmitting}>
-                {cashoutDetailsSubmitting ? 'Saving...' : 'Save Payment Details'}
+                {cashoutDetailsSubmitting
+                  ? 'Saving...'
+                  : editingCashoutDetailsId
+                    ? 'Update Payment Details'
+                    : 'Save Payment Details'}
               </button>
             </form>
           </div>

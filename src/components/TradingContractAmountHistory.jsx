@@ -262,7 +262,7 @@ export default function TradingContractAmountHistory({
           </p>
         </div>
         <div className="rounded-[1rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-right">
-          <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Current amount</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Current amount (AED)</p>
           <p className="mt-1 text-lg font-semibold text-white">
             {Number.isFinite(currentAmount) ? formatAed(currentAmount) : '—'}
           </p>

@@ -496,6 +496,44 @@ export function getPeriodEarningsSplit(period = {}) {
   }
 }
 
+export function canRequestMiningSettlement(period) {
+  return (
+    String(period?.status || '').toLowerCase() === 'completed' &&
+    (period?.is_locked === false || period?.is_locked === 0)
+  )
+}
+
+export function getMiningSettlementState(period) {
+  const status = String(period?.status || '').toLowerCase()
+  const decision = String(period?.client_decision || '').toLowerCase()
+
+  if (status === 'request_pending') {
+    return decision === 'cashout'
+      ? 'Cashout awaiting three approvals'
+      : decision === 'store'
+        ? 'Store request awaiting approval'
+        : 'Settlement request awaiting approval'
+  }
+
+  if (status === 'cashed_out') {
+    return 'Cashout completed'
+  }
+
+  if (status === 'stored') {
+    return 'Earnings stored'
+  }
+
+  if (status === 'rejected') {
+    return 'Request rejected — refresh to check eligibility'
+  }
+
+  if (status === 'pending') {
+    return 'Earnings accumulating'
+  }
+
+  return null
+}
+
 /** Dashboard stats storing / cashout / combined totals. */
 export function getDashboardEarningsSplit(stats = {}) {
   const btcStoring = toFiniteNumber(stats?.total_btc_earned_storing)

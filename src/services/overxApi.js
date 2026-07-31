@@ -190,26 +190,20 @@ export const overxApi = createApi({
       providesTags: (_result, _error, earningPeriodId) => [{ type: 'Chart', id: `period-${earningPeriodId}` }],
     }),
     requestPeriodCashout: builder.mutation({
-      query: ({ earning_period_id, token }) => ({
+      query: ({ earning_period_id, cashout_details_id }) => ({
         url: `/client/earning-periods/${earning_period_id}/request-cashout`,
         method: 'POST',
-        body: {
-          earning_period_id,
-          token,
-        },
+        body: { cashout_details_id },
       }),
-      invalidatesTags: ['Periods', 'Dashboard', 'History'],
+      invalidatesTags: ['Periods', 'Dashboard', 'History', 'Chart'],
     }),
     requestPeriodStore: builder.mutation({
-      query: ({ earning_period_id, token }) => ({
+      query: ({ earning_period_id, notes }) => ({
         url: `/client/earning-periods/${earning_period_id}/request-store`,
         method: 'POST',
-        body: {
-          earning_period_id,
-          token,
-        },
+        body: notes ? { notes } : {},
       }),
-      invalidatesTags: ['Periods', 'Dashboard', 'History'],
+      invalidatesTags: ['Periods', 'Dashboard', 'History', 'Chart'],
     }),
     downloadAllPeriodReports: builder.mutation({
       query: ({ token }) => ({
@@ -273,6 +267,21 @@ export const overxApi = createApi({
         url: '/client/cashout-details',
         method: 'POST',
         body: payload,
+      }),
+      invalidatesTags: ['Methods'],
+    }),
+    updatePortalCashoutDetails: builder.mutation({
+      query: ({ id, ...payload }) => ({
+        url: `/client/cashout-details/${id}`,
+        method: 'PUT',
+        body: payload,
+      }),
+      invalidatesTags: ['Methods'],
+    }),
+    deletePortalCashoutDetails: builder.mutation({
+      query: (id) => ({
+        url: `/client/cashout-details/${id}`,
+        method: 'DELETE',
       }),
       invalidatesTags: ['Methods'],
     }),
@@ -459,6 +468,8 @@ export const {
   useGetPublicServiceByIdQuery,
   useSubmitContactMutation,
   useCreatePortalCashoutDetailsMutation,
+  useUpdatePortalCashoutDetailsMutation,
+  useDeletePortalCashoutDetailsMutation,
   useChangePasswordMutation,
   useGetMeQuery,
   useGetPortalDashboardQuery,
