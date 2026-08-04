@@ -11,6 +11,7 @@ import {
   FaChevronRight,
   FaClock,
   FaCreditCard,
+  FaFileLines,
   FaEye,
   FaEyeSlash,
   FaGlobe,
@@ -56,6 +57,7 @@ import TradingContractAmountHistory from '../components/TradingContractAmountHis
 import MiningContractsView from '../components/MiningContractsView'
 import WithdrawalsView from '../components/WithdrawalsView'
 import { formatAed } from '../utils/money'
+import { isStorageFilePath, resolveStorageFileUrl, storageFileName } from '../utils/files'
 import ContractPeriodExplorer from '../components/ContractPeriodExplorer'
 import EarningsSplitSummary from '../components/EarningsSplitSummary'
 import PortalPeriodSelect from '../components/PortalPeriodSelect'
@@ -263,6 +265,32 @@ function getPendingTradingPeriods(payload) {
 
   const periods = Array.isArray(payload?.periods) ? payload.periods : []
   return periods.filter((period) => period?.is_eligible_for_decision)
+}
+
+function PassportDocumentValue({ passport }) {
+  const fileUrl = resolveStorageFileUrl(passport)
+
+  if (!passport) {
+    return <strong>Not available</strong>
+  }
+
+  if (fileUrl) {
+    return (
+      <a
+        href={fileUrl}
+        target="_blank"
+        rel="noreferrer"
+        download={storageFileName(passport)}
+        className="portal-inline-link inline-flex max-w-[14rem] items-center gap-2 sm:max-w-[20rem]"
+        title={storageFileName(passport)}
+      >
+        <FaFileLines />
+        Download passport
+      </a>
+    )
+  }
+
+  return <strong>{passport}</strong>
 }
 
 function getStatusTone(status) {
@@ -563,7 +591,7 @@ function getInsightRows(module, section, payload, user) {
       { label: 'Name', value: payload.profile?.name || 'Not available' },
       { label: 'Email', value: payload.profile?.email || 'Not available' },
       { label: 'Phone', value: payload.profile?.phone || 'Not available' },
-      { label: 'Passport', value: payload.profile?.passport || 'Not available' },
+      { label: 'Passport', value: resolveStorageFileUrl(payload.profile?.passport) ? 'Download available' : (payload.profile?.passport || 'Not available') },
     ]
   }
 
@@ -2062,7 +2090,7 @@ function ProfileView({ payload, onOpenEditProfile, profileMode = 'mining' }) {
             <div className="portal-list-row"><span>Name</span><strong>{profile?.name || 'Not available'}</strong></div>
             <div className="portal-list-row"><span>Email</span><strong>{profile?.email || 'Not available'}</strong></div>
             <div className="portal-list-row"><span>Phone</span><strong>{profile?.phone || 'Not available'}</strong></div>
-            <div className="portal-list-row"><span>Passport</span><strong>{profile?.passport || 'Not available'}</strong></div>
+            <div className="portal-list-row"><span>Passport</span><PassportDocumentValue passport={profile?.passport} /></div>
             <div className="portal-list-row"><span>Created</span><strong>{formatDateTime(profile?.created_at)}</strong></div>
           </div>
         </div>
@@ -3345,7 +3373,7 @@ function ClientPortalPage() {
         name: editProfileForm.name.trim(),
         email: editProfileForm.email.trim(),
         phone: editProfileForm.phone.trim(),
-        passport: editProfileForm.passport.trim(),
+        ...(isStorageFilePath(editProfileForm.passport) ? {} : { passport: editProfileForm.passport.trim() }),
       }).unwrap()
 
       setEditProfileSuccess('Profile updated successfully.')
@@ -4301,16 +4329,24 @@ function ClientPortalPage() {
                 />
               </div>
 
-              <div>
-                <label htmlFor="edit_profile_passport" className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">Passport</label>
-                <input
-                  id="edit_profile_passport"
-                  name="passport"
-                  value={editProfileForm.passport}
-                  onChange={handleEditProfileInputChange}
-                  className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
-                />
-              </div>
+              {isStorageFilePath(editProfileForm.passport) ? (
+                <div>
+                  <p className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">Passport</p>
+                  <PassportDocumentValue passport={editProfileForm.passport} />
+                  <p className="mt-2 text-xs text-slate-500">Passport documents are managed by your account administrator.</p>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="edit_profile_passport" className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-400">Passport</label>
+                  <input
+                    id="edit_profile_passport"
+                    name="passport"
+                    value={editProfileForm.passport}
+                    onChange={handleEditProfileInputChange}
+                    className="w-full rounded-xl border border-white/20 bg-[#081224] px-3 py-2 text-sm text-white outline-none transition focus:border-[#3B82F6]"
+                  />
+                </div>
+              )}
 
               {editProfileError ? (
                 <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{editProfileError}</p>
