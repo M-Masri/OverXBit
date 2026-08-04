@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   FaArrowRight,
+  FaArrowRightFromBracket,
   FaArrowTrendUp,
   FaBars,
   FaBitcoin,
@@ -29,6 +30,7 @@ import {
   useDeletePortalCashoutDetailsMutation,
   useDownloadPeriodReportMutation,
   useGetPortalDashboardQuery,
+  useGetClientWithdrawalsQuery,
   useGetMiningContractsQuery,
   useGetPortalHistoryQuery,
   useGetPortalMethodsQuery,
@@ -51,6 +53,8 @@ import {
 } from '../services/overxApi'
 import { clearStoredToken } from '../services/sessionStorage'
 import TradingContractAmountHistory from '../components/TradingContractAmountHistory'
+import MiningContractsView from '../components/MiningContractsView'
+import WithdrawalsView from '../components/WithdrawalsView'
 import { formatAed } from '../utils/money'
 import ContractPeriodExplorer from '../components/ContractPeriodExplorer'
 import EarningsSplitSummary from '../components/EarningsSplitSummary'
@@ -98,6 +102,20 @@ const miningSections = [
     icon: FaMoneyBillTransfer,
   },
   {
+    slug: 'withdrawals',
+    label: 'Withdrawals',
+    title: 'Contract capital withdrawals',
+    description: 'Read-only AED capital reductions from mining and trading agreements with receipts.',
+    icon: FaArrowRightFromBracket,
+  },
+  {
+    slug: 'contracts',
+    label: 'Mining Contracts',
+    title: 'Mining agreements and live AED capital',
+    description: 'Agreement amounts, capital increases, and withdrawal history.',
+    icon: FaShieldHalved,
+  },
+  {
     slug: 'methods',
     label: 'Cashout Methods',
     title: 'Wallets and bank rails ready for payouts',
@@ -141,6 +159,13 @@ const tradingSections = [
     title: 'Cashouts and stored trading earnings',
     description: 'Track processed payouts and stored USD balances.',
     icon: FaMoneyBillTransfer,
+  },
+  {
+    slug: 'withdrawals',
+    label: 'Withdrawals',
+    title: 'Contract capital withdrawals',
+    description: 'Read-only AED capital reductions from mining and trading agreements with receipts.',
+    icon: FaArrowRightFromBracket,
   },
   {
     slug: 'methods',
@@ -337,6 +362,20 @@ function getOverviewCards(module, section, payload, user) {
       ]
     }
 
+    if (section.slug === 'withdrawals') {
+      const withdrawals = payload.withdrawals || []
+      const miningCount = withdrawals.filter((row) => row.contract_type === 'mining').length
+      const tradingCount = withdrawals.filter((row) => row.contract_type === 'trading').length
+      const totalWithdrawn = withdrawals.reduce((sum, row) => sum + Number(row?.amount || 0), 0)
+
+      return [
+        { label: 'Withdrawals', value: String(payload.withdrawalsMeta?.total || withdrawals.length || 0), hint: 'Capital reductions', accent: true },
+        { label: 'Mining', value: String(miningCount), hint: 'On this page' },
+        { label: 'Trading', value: String(tradingCount), hint: 'On this page' },
+        { label: 'Withdrawn (page)', value: formatAed(totalWithdrawn), hint: 'AED capital returned' },
+      ]
+    }
+
     if (section.slug === 'methods') {
       const methods = payload.methods || []
       return [
@@ -425,6 +464,36 @@ function getOverviewCards(module, section, payload, user) {
       { label: 'Cashouts', value: String(payload.cashoutsMeta?.total || payload.cashouts?.length || 0), hint: 'Payout events' },
       { label: 'Stored BTC', value: formatBtc(payload.storedMeta?.total_stored_btc), hint: 'Accumulated reserve' },
       { label: 'Stored Value', value: formatMoney(payload.storedMeta?.total_stored_revenue), hint: 'Revenue retained' },
+    ]
+  }
+
+  if (section.slug === 'withdrawals') {
+    const withdrawals = payload.withdrawals || []
+    const miningCount = withdrawals.filter((row) => row.contract_type === 'mining').length
+    const tradingCount = withdrawals.filter((row) => row.contract_type === 'trading').length
+    const totalWithdrawn = withdrawals.reduce((sum, row) => sum + Number(row?.amount || 0), 0)
+
+    return [
+      { label: 'Withdrawals', value: String(payload.withdrawalsMeta?.total || withdrawals.length || 0), hint: 'Capital reductions', accent: true },
+      { label: 'Mining', value: String(miningCount), hint: 'On this page' },
+      { label: 'Trading', value: String(tradingCount), hint: 'On this page' },
+      { label: 'Withdrawn (page)', value: formatAed(totalWithdrawn), hint: 'AED capital returned' },
+    ]
+  }
+
+  if (section.slug === 'contracts') {
+    const contracts = payload.contracts || []
+    const totalAmount = contracts.reduce((sum, contract) => sum + Number(contract?.amount || 0), 0)
+    const totalAdjustments = contracts.reduce(
+      (sum, contract) => sum + Number(contract?.amount_adjustments_count || 0),
+      0
+    )
+
+    return [
+      { label: 'Contracts', value: String(payload.contractsMeta?.total || contracts.length || 0), hint: 'Mining agreements', accent: true },
+      { label: 'Current Capital', value: formatAed(totalAmount), hint: 'Live AED amounts' },
+      { label: 'Adjustments', value: String(totalAdjustments), hint: 'Increases & withdrawals' },
+      { label: 'Latest Contract', value: contracts[0]?.period_label || 'Not set', hint: 'Most recent agreement' },
     ]
   }
 
@@ -1778,6 +1847,10 @@ function HistoryView({ payload }) {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400">
+        This ledger covers mining <strong className="font-medium text-slate-200">earnings</strong> cashouts and stored BTC.
+        Contract capital withdrawals (AED) are listed separately under Withdrawals.
+      </div>
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard label="Transactions" value={String(payload.transactionsMeta?.total || transactions.length || 0)} tone="accent" />
         <StatCard label="Cashouts" value={String(payload.cashoutsMeta?.total || cashouts.length || 0)} />
@@ -2007,7 +2080,7 @@ function ProfileView({ payload, onOpenEditProfile, profileMode = 'mining' }) {
                     </div>
                     <div>
                       <p className="text-sm text-slate-400">Amount</p>
-                      <p className="mt-1 font-semibold text-white">{formatMoney(contract.amount)}</p>
+                      <p className="mt-1 font-semibold text-white">{formatAed(contract.amount)}</p>
                     </div>
                     <a href={contract.file_url || '#'} target="_blank" rel="noreferrer" className="portal-inline-link">
                       Open file
@@ -2113,6 +2186,10 @@ function TradingHistoryView({ payload }) {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400">
+        This ledger covers trading <strong className="font-medium text-slate-200">earnings</strong> cashouts and stored USD.
+        Contract capital withdrawals (AED) are listed separately under Withdrawals.
+      </div>
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard label="Cashouts" value={String(payload.cashoutsMeta?.total || cashouts.length || 0)} tone="accent" />
         <StatCard label="Stored Records" value={String(payload.storedMeta?.total || storedEarnings.length || 0)} />
@@ -2327,6 +2404,11 @@ function ContentRenderer({
   onDeleteMethod,
   deletingMethodId,
   methodActionError,
+  withdrawalsFilter,
+  onWithdrawalsFilterChange,
+  withdrawalsPage,
+  onWithdrawalsPageChange,
+  onRetryWithdrawals,
 }) {
   if (module === 'trading') {
     if (section.slug === 'periods') {
@@ -2346,6 +2428,19 @@ function ContentRenderer({
 
     if (section.slug === 'history') {
       return <TradingHistoryView payload={payload} />
+    }
+
+    if (section.slug === 'withdrawals') {
+      return (
+        <WithdrawalsView
+          payload={payload}
+          contractTypeFilter={withdrawalsFilter}
+          onFilterChange={onWithdrawalsFilterChange}
+          page={withdrawalsPage}
+          onPageChange={onWithdrawalsPageChange}
+          onRetry={onRetryWithdrawals}
+        />
+      )
     }
 
     if (section.slug === 'methods') {
@@ -2376,8 +2471,25 @@ function ContentRenderer({
     return null
   }
 
+  if (section.slug === 'contracts') {
+    return <MiningContractsView payload={payload} />
+  }
+
   if (section.slug === 'history') {
     return <HistoryView payload={payload} />
+  }
+
+  if (section.slug === 'withdrawals') {
+    return (
+      <WithdrawalsView
+        payload={payload}
+        contractTypeFilter={withdrawalsFilter}
+        onFilterChange={onWithdrawalsFilterChange}
+        page={withdrawalsPage}
+        onPageChange={onWithdrawalsPageChange}
+        onRetry={onRetryWithdrawals}
+      />
+    )
   }
 
   if (section.slug === 'methods') {
@@ -2509,12 +2621,8 @@ function ClientPortalPage() {
   })
   const [selectedPeriodId, setSelectedPeriodId] = useState(null)
   const [selectedContractId, setSelectedContractId] = useState(null)
-
-  useEffect(() => {
-    if (activeModule === 'mining' && activeSection.slug === 'contracts') {
-      navigate('/portal/dashboard', { replace: true })
-    }
-  }, [activeModule, activeSection.slug, navigate])
+  const [withdrawalsFilter, setWithdrawalsFilter] = useState('')
+  const [withdrawalsPage, setWithdrawalsPage] = useState(1)
 
   useEffect(() => {
     setIsMobileSidebarOpen(false)
@@ -2554,7 +2662,7 @@ function ClientPortalPage() {
     skip: !isMiningPeriodsRoute || !token,
   })
   const miningContractsQuery = useGetMiningContractsQuery(undefined, {
-    skip: !isMiningPeriodsRoute || !token,
+    skip: !isMiningModule || !['dashboard', 'periods', 'contracts'].includes(activeSection.slug) || !token,
   })
   const tradingContractsQuery = useGetTradingContractsQuery(
     { status: 'active' },
@@ -2575,6 +2683,16 @@ function ClientPortalPage() {
   const tradingHistoryQuery = useGetTradingHistoryQuery(undefined, {
     skip: !isTradingModule || activeSection.slug !== 'history',
   })
+  const withdrawalsQuery = useGetClientWithdrawalsQuery(
+    {
+      ...(withdrawalsFilter ? { contract_type: withdrawalsFilter } : {}),
+      page: withdrawalsPage,
+      per_page: 20,
+    },
+    {
+      skip: activeSection.slug !== 'withdrawals' || !token,
+    }
+  )
   const defaultPeriodId = useMemo(
     () =>
       resolveDefaultPeriodId(
@@ -2754,6 +2872,10 @@ function ClientPortalPage() {
         return tradingHistoryQuery
       }
 
+      if (activeSection.slug === 'withdrawals') {
+        return withdrawalsQuery
+      }
+
       if (activeSection.slug === 'methods') {
         return methodsQuery
       }
@@ -2771,6 +2893,14 @@ function ClientPortalPage() {
 
     if (activeSection.slug === 'history') {
       return historyQuery
+    }
+
+    if (activeSection.slug === 'withdrawals') {
+      return withdrawalsQuery
+    }
+
+    if (activeSection.slug === 'contracts') {
+      return miningContractsQuery
     }
 
     if (activeSection.slug === 'methods') {
@@ -2792,6 +2922,7 @@ function ClientPortalPage() {
     tradingContractsQuery,
     tradingHistoryQuery,
     tradingPeriodsQuery,
+    withdrawalsQuery,
   ])
 
   const payload = activeQuery.data || {}
@@ -2871,10 +3002,11 @@ function ClientPortalPage() {
 
     setActiveModule(nextModule)
     setPeriodActionError('')
+  }
 
-    if (nextModule === 'mining' && activeSection.slug === 'contracts') {
-      navigate('/portal/dashboard', { replace: true })
-    }
+  function handleWithdrawalsFilterChange(nextFilter) {
+    setWithdrawalsFilter(nextFilter)
+    setWithdrawalsPage(1)
   }
 
   function handleRequestCashout(periodId) {
@@ -3643,6 +3775,11 @@ function ClientPortalPage() {
                         onDeleteMethod={handleDeleteCashoutDetails}
                         deletingMethodId={deletingCashoutDetailsId}
                         methodActionError={periodActionError}
+                        withdrawalsFilter={withdrawalsFilter}
+                        onWithdrawalsFilterChange={handleWithdrawalsFilterChange}
+                        withdrawalsPage={withdrawalsPage}
+                        onWithdrawalsPageChange={setWithdrawalsPage}
+                        onRetryWithdrawals={() => withdrawalsQuery.refetch()}
                       />
                     </div>
                   ) : null}

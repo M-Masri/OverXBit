@@ -71,6 +71,7 @@ export const overxApi = createApi({
     'TradingHistory',
     'TradingContracts',
     'TradingChart',
+    'Withdrawals',
   ],
   endpoints: (builder) => ({
     getPublicServices: builder.query({
@@ -143,6 +144,44 @@ export const overxApi = createApi({
         contractsMeta: response?.meta || null,
       }),
       providesTags: ['Contracts'],
+    }),
+    getMiningContractById: builder.query({
+      query: (contractId) => `/client/contracts/${contractId}`,
+      transformResponse: (response) => ({
+        contract: response?.data || null,
+      }),
+      providesTags: (_result, _error, contractId) => [{ type: 'Contracts', id: String(contractId) }],
+    }),
+    getMiningContractAmountAdjustments: builder.query({
+      query: ({ contractId, type, page } = {}) => ({
+        url: `/client/contracts/${contractId}/amount-adjustments`,
+        params: {
+          ...(type ? { type } : {}),
+          ...(page ? { page } : {}),
+        },
+      }),
+      transformResponse: (response) => ({
+        adjustments: response?.data || [],
+        adjustmentsMeta: response?.meta || null,
+      }),
+      providesTags: (_result, _error, arg) => [
+        { type: 'Contracts', id: `adjustments-${arg?.contractId}` },
+      ],
+    }),
+    getClientWithdrawals: builder.query({
+      query: (params = {}) => ({
+        url: '/client/withdrawals',
+        params: {
+          ...(params.contract_type ? { contract_type: params.contract_type } : {}),
+          ...(params.page ? { page: params.page } : {}),
+          ...(params.per_page ? { per_page: params.per_page } : {}),
+        },
+      }),
+      transformResponse: (response) => ({
+        withdrawals: response?.data || [],
+        withdrawalsMeta: response?.meta || null,
+      }),
+      providesTags: ['Withdrawals', 'Contracts', 'TradingContracts'],
     }),
     getPortalPeriods: builder.query({
       async queryFn(_arg, _api, _extraOptions, fetchWithBQ) {
@@ -474,6 +513,9 @@ export const {
   useGetMeQuery,
   useGetPortalDashboardQuery,
   useGetMiningContractsQuery,
+  useGetMiningContractByIdQuery,
+  useGetMiningContractAmountAdjustmentsQuery,
+  useGetClientWithdrawalsQuery,
   useGetPortalHistoryQuery,
   useGetPortalMethodsQuery,
   useGetPortalSinglePeriodChartQuery,
