@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'https://overx.sawatech.ae/api').replace(/\/$/, '')
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'https://portal.overxbit.com/api').replace(/\/$/, '')
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
